@@ -291,7 +291,9 @@ export const GetMonthlyStatsResponse = zod.object({
   "days": zod.array(zod.object({
   "day": zod.number().describe('Day of month (1-31)'),
   "this_month": zod.number().nullish().describe('Hours trained on this day this month'),
-  "last_month": zod.number().nullish().describe('Hours trained on this day last month')
+  "last_month": zod.number().nullish().describe('Hours trained on this day last month'),
+  "this_month_km": zod.number().nullish().describe('Kilometres covered on this day this month'),
+  "last_month_km": zod.number().nullish().describe('Kilometres covered on this day last month')
 }))
 })
 

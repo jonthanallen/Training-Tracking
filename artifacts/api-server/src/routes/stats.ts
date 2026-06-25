@@ -142,9 +142,9 @@ router.get("/stats/monthly", async (req, res) => {
     ]);
     const activities = [...(page1 ?? []), ...(page2 ?? [])];
 
-    // day -> seconds for each month
-    const thisDayMap = new Map<number, number>();
-    const lastDayMap = new Map<number, number>();
+    // day -> { seconds, metres } for each month
+    const thisDayMap = new Map<number, { secs: number; dist: number }>();
+    const lastDayMap = new Map<number, { secs: number; dist: number }>();
 
     for (const act of activities) {
       const dateStr = (act.start_date_local as string)?.split("T")[0];
@@ -154,11 +154,14 @@ router.get("/stats/monthly", async (req, res) => {
       const m = d.getMonth();
       const day = d.getDate();
       const secs = (act.moving_time as number) || 0;
+      const dist = (act.distance as number) || 0;
 
       if (y === thisYear && m === thisMonth) {
-        thisDayMap.set(day, (thisDayMap.get(day) ?? 0) + secs);
+        const prev = thisDayMap.get(day) ?? { secs: 0, dist: 0 };
+        thisDayMap.set(day, { secs: prev.secs + secs, dist: prev.dist + dist });
       } else if (y === lastYear && m === lastMonth) {
-        lastDayMap.set(day, (lastDayMap.get(day) ?? 0) + secs);
+        const prev = lastDayMap.get(day) ?? { secs: 0, dist: 0 };
+        lastDayMap.set(day, { secs: prev.secs + secs, dist: prev.dist + dist });
       }
     }
 
@@ -169,15 +172,14 @@ router.get("/stats/monthly", async (req, res) => {
 
     const days = [];
     for (let d = 1; d <= maxDay; d++) {
-      const thisVal = thisDayMap.has(d) ? parseFloat((thisDayMap.get(d)! / 3600).toFixed(2)) : null;
-      // Only include last month days up to last month's actual length
-      const lastVal = d <= lastMonthDays && lastDayMap.has(d)
-        ? parseFloat((lastDayMap.get(d)! / 3600).toFixed(2))
-        : d <= lastMonthDays ? null : undefined;
+      const thisEntry = thisDayMap.get(d);
+      const lastEntry = lastDayMap.get(d);
       days.push({
         day: d,
-        this_month: d <= today ? (thisVal ?? null) : null,
-        last_month: d <= lastMonthDays ? (lastVal ?? null) : undefined,
+        this_month: d <= today ? (thisEntry ? parseFloat((thisEntry.secs / 3600).toFixed(2)) : null) : null,
+        last_month: d <= lastMonthDays ? (lastEntry ? parseFloat((lastEntry.secs / 3600).toFixed(2)) : null) : undefined,
+        this_month_km: d <= today ? (thisEntry ? parseFloat((thisEntry.dist / 1000).toFixed(2)) : null) : null,
+        last_month_km: d <= lastMonthDays ? (lastEntry ? parseFloat((lastEntry.dist / 1000).toFixed(2)) : null) : undefined,
       });
     }
 

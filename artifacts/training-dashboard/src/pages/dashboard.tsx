@@ -138,6 +138,7 @@ function fmtHours(h: number): string {
 export default function Dashboard() {
   const [chartMode, setChartMode] = useState<ChartMode>("hours");
   const [sportFilter, setSportFilter] = useState<SportFilter>("All");
+  const [monthlyMode, setMonthlyMode] = useState<"hours" | "km">("hours");
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const { data: activities, isLoading: loadingActivities } = useListActivities(
@@ -175,15 +176,17 @@ export default function Dashboard() {
     let cumThis = 0;
     let cumLast = 0;
     return monthlyStats.days.map((d) => {
-      cumThis += d.this_month ?? 0;
-      cumLast += d.last_month ?? 0;
+      const thisVal = monthlyMode === "hours" ? (d.this_month ?? 0) : (d.this_month_km ?? 0);
+      const lastVal = monthlyMode === "hours" ? (d.last_month ?? 0) : (d.last_month_km ?? 0);
+      cumThis += thisVal;
+      cumLast += lastVal;
       return {
         day: d.day,
         this_month: d.day <= todayDay ? parseFloat(cumThis.toFixed(2)) : null,
         last_month: parseFloat(cumLast.toFixed(2)),
       };
     });
-  }, [monthlyStats]);
+  }, [monthlyStats, monthlyMode]);
 
   const AreaTooltipContent = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
@@ -195,10 +198,11 @@ export default function Dashboard() {
 
   const MonthlyTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
+    const fmt = (v: number) => monthlyMode === "hours" ? fmtHours(v) : `${v.toFixed(1)} km`;
     const lines = payload
       .filter((p) => p.value != null)
       .map((p) => ({
-        text: `${p.name}: ${fmtHours(p.value as number)}`,
+        text: `${p.name}: ${fmt(p.value as number)}`,
         color: p.color ?? "hsl(var(--foreground))",
       }));
     if (!lines.length) return null;
@@ -314,8 +318,23 @@ export default function Dashboard() {
 
         {/* Month vs Last Month */}
         <div className="bg-card border border-border rounded-lg p-5">
-          <div className="mb-3">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Monthly Compare</h2>
+            <div className="flex items-center bg-muted rounded-md p-0.5 gap-0.5">
+              {(["hours", "km"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMonthlyMode(m)}
+                  className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    monthlyMode === m
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m === "hours" ? "Hours" : "KM"}
+                </button>
+              ))}
+            </div>
           </div>
           {loadingMonthly ? (
             <Skeleton className="h-40 w-full" />
@@ -351,18 +370,6 @@ export default function Dashboard() {
                 />
               </LineChart>
             </ResponsiveContainer>
-          )}
-          {monthlyStats && (
-            <div className="flex items-center gap-4 mt-2 justify-end">
-              <div className="flex items-center gap-1.5">
-                <div className="w-10 h-0.5 rounded-full" style={{ background: "hsl(var(--primary) / 0.35)" }} />
-                <span className="text-[10px] text-muted-foreground">{monthlyStats.last_month_name}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-10 h-0.5 rounded-full" style={{ background: "hsl(var(--primary))" }} />
-                <span className="text-[10px] text-muted-foreground">{monthlyStats.this_month_name}</span>
-              </div>
-            </div>
           )}
         </div>
       </div>

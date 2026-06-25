@@ -567,6 +567,12 @@ components:
               last_month:
                 type: ["number", "null"]
                 description: Hours trained on this day last month
+              this_month_km:
+                type: ["number", "null"]
+                description: Kilometres covered on this day this month
+              last_month_km:
+                type: ["number", "null"]
+                description: Kilometres covered on this day last month
 
     DailyActivity:
       type: object

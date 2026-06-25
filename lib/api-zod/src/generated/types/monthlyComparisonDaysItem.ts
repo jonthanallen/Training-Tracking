@@ -19,4 +19,14 @@ export type MonthlyComparisonDaysItem = {
      * @nullable
      */
   last_month?: number | null;
+  /**
+     * Kilometres covered on this day this month
+     * @nullable
+     */
+  this_month_km?: number | null;
+  /**
+     * Kilometres covered on this day last month
+     * @nullable
+     */
+  last_month_km?: number | null;
 };
