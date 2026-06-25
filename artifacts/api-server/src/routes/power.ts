@@ -17,10 +17,13 @@ function cacheSet(key: string, value: unknown, ttlMs: number): void {
 }
 const TTL_POWER = 60 * 60 * 1000; // 1 hour
 
-// ─── Power curve ──────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 const DURATIONS = [1, 5, 10, 30, 60, 120, 300, 600, 1200, 1800, 3600];
 const LABELS    = ["1s","5s","10s","30s","1min","2min","5min","10min","20min","30min","1hr"];
 const RIDE_TYPES = new Set(["Ride","VirtualRide","EBikeRide","EMountainBikeRide","GravelRide"]);
+
+// Max stream fetches per range (each is one Strava API call)
+const STREAM_LIMIT: Record<string, number> = { "6w": 120, "ytd": 250, "lifetime": 400 };
 
 function maxMeanPower(watts: number[], secs: number): number | null {
   if (watts.length < secs) return null;
@@ -36,9 +39,9 @@ function maxMeanPower(watts: number[], secs: number): number | null {
 
 function rangeAfter(range: string): number | undefined {
   const now = Math.floor(Date.now() / 1000);
-  if (range === "6w")       return now - 42 * 86400;
-  if (range === "ytd")      return Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
-  return undefined; // lifetime
+  if (range === "6w")  return now - 42 * 86400;
+  if (range === "ytd") return Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
+  return undefined; // lifetime = no filter
 }
 
 router.get("/power-curve", async (req, res) => {
@@ -48,35 +51,41 @@ router.get("/power-curve", async (req, res) => {
   if (cached) { res.json(cached); return; }
 
   try {
-    // Fetch bike activities in range
     const after = rangeAfter(range);
-    const MAX_ACTIVITIES = range === "lifetime" ? 100 : 60;
-    const activities: Array<Record<string, unknown>> = [];
+    const streamLimit = STREAM_LIMIT[range] ?? 120;
+
+    // ── Step 1: collect ALL bike+power activity IDs in the date range ──────────
+    // Paginate until Strava returns a partial page (no more activities).
+    // No artificial cap here — we want the complete list for the range so that
+    // ytd always ⊇ 6w and lifetime always ⊇ ytd.
+    const bikeActivities: Array<Record<string, unknown>> = [];
     let page = 1;
 
-    while (activities.length < MAX_ACTIVITIES) {
+    while (true) {
       const batch = await stravaFetch("/athlete/activities", {
         per_page: 200,
         page,
-        ...(after ? { after } : {}),
+        ...(after !== undefined ? { after } : {}),
       }) as Array<Record<string, unknown>>;
+
       if (!batch?.length) break;
 
       const bikeWithPower = batch.filter(
         (a) => RIDE_TYPES.has(a.sport_type as string) && a.device_watts === true
       );
-      activities.push(...bikeWithPower);
-      if (batch.length < 200) break;
+      bikeActivities.push(...bikeWithPower);
+
+      if (batch.length < 200) break; // last page
       page++;
     }
 
-    const toProcess = activities.slice(0, MAX_ACTIVITIES);
+    // ── Step 2: fetch streams, bounded by STREAM_LIMIT ────────────────────────
+    // Take the most-recent N rides (already newest-first from Strava).
+    const toProcess = bikeActivities.slice(0, streamLimit);
 
-    // Compute power curve: best mean power at each duration across all activities
     const best: Record<number, number> = {};
 
-    // Fetch streams in small batches to respect rate limits
-    const BATCH = 5;
+    const BATCH = 5; // concurrent stream requests per tick
     for (let i = 0; i < toProcess.length; i += BATCH) {
       const chunk = toProcess.slice(i, i + BATCH);
       await Promise.all(chunk.map(async (act) => {
@@ -90,12 +99,12 @@ router.get("/power-curve", async (req, res) => {
 
           for (const dur of DURATIONS) {
             const mp = maxMeanPower(watts, dur);
-            if (mp !== null && (!best[dur] || mp > best[dur])) {
+            if (mp !== null && (best[dur] === undefined || mp > best[dur])) {
               best[dur] = mp;
             }
           }
         } catch {
-          // stream unavailable for this activity — skip
+          // stream unavailable — skip silently
         }
       }));
     }
