@@ -204,13 +204,10 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const distSuffix = isImperial ? "mi" : "km";
   const visibleSeries = SERIES.filter((s) => available[s.key]);
 
-  const maxTicks = 20;
-  const tickStep = Math.max(1, Math.floor(data.length / maxTicks));
-  const axisTicks = Array.from(new Set([
-    data[0]?.dist,
-    ...data.filter((_, i) => i % tickStep === 0).map((d) => d.dist),
-    data[data.length - 1]?.dist,
-  ].filter(Boolean)));
+  const maxDistVal = parseFloat(data[data.length - 1]?.dist ?? "0");
+  const axisTicks = Array.from({ length: 20 }, (_, i) =>
+    (maxDistVal * i / 19).toFixed(2)
+  );
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
