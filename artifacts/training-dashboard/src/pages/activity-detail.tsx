@@ -7,7 +7,7 @@ import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeI
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/chart-tooltip";
-import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Trophy, Wind, ChevronDown } from "lucide-react";
+import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Wind, ChevronDown } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -357,11 +357,6 @@ export default function ActivityDetail() {
                 })}
               </span>
               <Badge variant="secondary" className="text-xs">{activity.sport_type}</Badge>
-              {activity.achievement_count != null && activity.achievement_count > 0 && (
-                <Badge className="text-xs gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                  <Trophy className="w-3 h-3" /> {activity.achievement_count} achievements
-                </Badge>
-              )}
             </div>
             {activity.description && (
               <p className="text-sm text-muted-foreground mt-2 max-w-prose">{activity.description}</p>
