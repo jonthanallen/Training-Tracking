@@ -164,9 +164,7 @@ export default function Stats() {
   const [chartMode, setChartMode] = useState<ChartMode>("hours");
   const [sportFilter, setSportFilter] = useState<SportFilter>("All");
   const [hoverCell, setHoverCell] = useState<{ cell: CalendarCell; x: number; y: number } | null>(null);
-  const [selectedRange, setSelectedRange] = useState<SelectedRange>(
-    { type: "week", weekStart: getCurrentWeekMonday() }
-  );
+  const [selectedRange, setSelectedRange] = useState<SelectedRange | null>(null);
   const heatmapRef = useRef<HTMLDivElement>(null);
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
@@ -182,7 +180,8 @@ export default function Stats() {
     { query: { queryKey: getGetDailyStatsQueryKey({ days: 364 }) } }
   );
 
-  const rangeTimestamps = useMemo(() => rangeToTimestamps(selectedRange), [selectedRange]);
+  const activeWeekStart = selectedRange?.weekStart ?? getCurrentWeekMonday();
+  const rangeTimestamps = useMemo(() => rangeToTimestamps({ type: "week", weekStart: activeWeekStart }), [activeWeekStart]);
 
   const { data: rangeActivities, isLoading: loadingRangeActivities } = useListActivities(
     { per_page: 30, after: rangeTimestamps.after, before: rangeTimestamps.before },
@@ -221,7 +220,7 @@ export default function Stats() {
 
   const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const rangeLabel = `Week of ${formatWeekRange(selectedRange.weekStart)}`;
+  const rangeLabel = `Week of ${formatWeekRange(activeWeekStart)}`;
 
   return (
     <div className="space-y-8">
@@ -270,18 +269,18 @@ export default function Stats() {
                 radius={[2, 2, 0, 0]}
                 style={{ cursor: "pointer" }}
                 onClick={(data: { weekStart: string }) =>
-                  setSelectedRange({ type: "week", weekStart: data.weekStart })
+                  setSelectedRange((prev) =>
+                    prev?.weekStart === data.weekStart ? null : { type: "week", weekStart: data.weekStart }
+                  )
                 }
               >
                 {weeklyChartData?.map((entry, i) => (
                   <Cell
                     key={i}
                     fill={
-                      selectedRange.type === "week" && selectedRange.weekStart === entry.weekStart
+                      selectedRange === null || selectedRange.weekStart === entry.weekStart
                         ? "hsl(var(--primary))"
-                        : selectedRange.type === "week"
-                          ? "hsl(var(--primary) / 0.3)"
-                          : "hsl(var(--primary))"
+                        : "hsl(var(--primary) / 0.3)"
                     }
                   />
                 ))}
@@ -361,8 +360,8 @@ export default function Stats() {
               </div>
 
               {calendarGrid.map((week, colIdx) => {
-                const isSelectedWeek = selectedRange.type === "week" && week[0].date === selectedRange.weekStart;
-                const dimWeek = selectedRange.type === "week" && !isSelectedWeek;
+                const isSelectedWeek = selectedRange !== null && week[0].date === selectedRange.weekStart;
+                const dimWeek = selectedRange !== null && !isSelectedWeek;
                 return (
                 <div
                   key={colIdx}
@@ -390,7 +389,11 @@ export default function Stats() {
                         });
                       }}
                       onMouseLeave={() => setHoverCell(null)}
-                      onClick={() => setSelectedRange({ type: "week", weekStart: week[0].date })}
+                      onClick={() =>
+                        setSelectedRange((prev) =>
+                          prev?.weekStart === week[0].date ? null : { type: "week", weekStart: week[0].date }
+                        )
+                      }
                     />
                   ))}
                 </div>
@@ -424,12 +427,12 @@ export default function Stats() {
               return ` | ${hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`} | ${distStr}`;
             })()}
           </h2>
-          {selectedRange.weekStart !== getCurrentWeekMonday() && (
+          {selectedRange !== null && (
             <button
-              onClick={() => setSelectedRange({ type: "week", weekStart: getCurrentWeekMonday() })}
+              onClick={() => setSelectedRange(null)}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              This week
+              Clear
             </button>
           )}
         </div>
