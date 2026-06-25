@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGetAthlete, useListActivities, getGetAthleteQueryKey, getListActivitiesQueryKey } from "@workspace/api-client-react";
 import type { Activity } from "@workspace/api-client-react";
 import { Link } from "wouter";
@@ -47,13 +47,23 @@ export default function Activities() {
     { query: { queryKey: getListActivitiesQueryKey(params) } }
   );
 
+  // Guard against double-append: track the last params key we processed
+  const lastParamsKeyRef = useRef<string>("");
+
   useEffect(() => {
     if (!newActivities) return;
+    const key = JSON.stringify(params);
+    if (key === lastParamsKeyRef.current) return;
+    lastParamsKeyRef.current = key;
+
     const isFirstLoad = isFiltered ? cursor === undefined : page === 1;
     if (isFirstLoad) {
       setAllActivities(newActivities);
     } else {
-      setAllActivities((prev) => [...prev, ...newActivities]);
+      setAllActivities((prev) => {
+        const seen = new Set(prev.map((a) => String(a.id)));
+        return [...prev, ...newActivities.filter((a) => !seen.has(String(a.id)))];
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newActivities]);
