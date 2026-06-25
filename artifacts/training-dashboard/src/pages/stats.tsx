@@ -17,27 +17,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 type ChartMode = "hours" | "km";
 type SportFilter = "All" | "Ride" | "Run" | "Swim" | "Other";
 
+interface CellActivity { sport_type: string; distance: number }
+interface CalendarCell { date: string; trained: boolean; activities: CellActivity[] }
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
+function parseLocalDate(dateStr: string): Date {
+  return new Date(dateStr + "T00:00:00");
+}
+
 function formatWeekRange(weekStart: string): string {
-  // weekStart is YYYY-MM-DD (Monday). Add a timezone offset fix so Date parses as local.
-  const start = new Date(weekStart + "T00:00:00");
+  const start = parseLocalDate(weekStart);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   const startMonth = start.toLocaleDateString("en", { month: "short" });
-  const endMonth = end.toLocaleDateString("en", { month: "short" });
-  if (startMonth === endMonth) {
-    return `${startMonth} ${start.getDate()} - ${end.getDate()}`;
-  }
+  const endMonth   = end.toLocaleDateString("en",   { month: "short" });
+  if (startMonth === endMonth) return `${startMonth} ${start.getDate()} - ${end.getDate()}`;
   return `${startMonth} ${start.getDate()} - ${endMonth} ${end.getDate()}`;
 }
 
 function formatDayLabel(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
+  return parseLocalDate(dateStr).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
 }
 
-// ─── Heatmap helpers ──────────────────────────────────────────────────────────
+function formatDist(meters: number, measurePref: string): string {
+  if (!meters) return "";
+  if (measurePref === "imperial") return `${(meters * 0.000621371).toFixed(2)} mi`;
+  return `${(meters / 1000).toFixed(2)} km`;
+}
+
+// ─── Sport color ──────────────────────────────────────────────────────────────
 
 const SPORT_COLOR: Record<SportFilter, string> = {
   All:   "hsl(15 90% 55%)",
@@ -47,56 +56,68 @@ const SPORT_COLOR: Record<SportFilter, string> = {
   Other: "hsl(0 0% 55%)",
 };
 
+// ─── Calendar grid (Mon top → Sun bottom, left = oldest week) ────────────────
+
 function buildCalendarGrid(
   dailyData: DailyActivity[],
   sport: SportFilter
-): { date: string; trained: boolean }[][] {
-  const dayMap = new Set<string>();
+): CalendarCell[][] {
+  // Build: date → list of matching activities
+  const dayMap = new Map<string, CellActivity[]>();
   for (const entry of dailyData) {
-    if (sport !== "All" && entry.sport_type !== sport) continue;
-    if (entry.moving_time > 0) dayMap.add(entry.date);
+    const matches = sport === "All" || entry.sport_type === sport;
+    if (!matches || entry.moving_time <= 0) continue;
+    const list = dayMap.get(entry.date) ?? [];
+    list.push({ sport_type: entry.sport_type, distance: entry.distance });
+    dayMap.set(entry.date, list);
   }
 
   const today = new Date();
-  const endOfGrid = new Date(today);
-  const daysToSat = (6 - endOfGrid.getDay() + 7) % 7;
-  endOfGrid.setDate(endOfGrid.getDate() + daysToSat);
+  today.setHours(0, 0, 0, 0);
 
-  const WEEKS = 52;
-  const weeks: { date: string; trained: boolean }[][] = [];
+  // Find the most recent Sunday (so the last column ends on Sunday)
+  const lastSunday = new Date(today);
+  lastSunday.setDate(today.getDate() + ((7 - today.getDay()) % 7));
 
-  for (let w = WEEKS - 1; w >= 0; w--) {
-    const col: { date: string; trained: boolean }[] = [];
-    for (let d = 6; d >= 0; d--) {
-      const cell = new Date(endOfGrid);
-      cell.setDate(endOfGrid.getDate() - (w * 7 + d));
+  // First Monday = lastSunday - 52*7 + 1 days
+  const firstMonday = new Date(lastSunday);
+  firstMonday.setDate(lastSunday.getDate() - 52 * 7 + 1);
+
+  // Build 52 columns (weeks), each with 7 rows (Mon=0 … Sun=6)
+  const weeks: CalendarCell[][] = [];
+  for (let w = 0; w < 52; w++) {
+    const col: CalendarCell[] = [];
+    for (let d = 0; d < 7; d++) {
+      const cell = new Date(firstMonday);
+      cell.setDate(firstMonday.getDate() + w * 7 + d);
       const dateStr = cell.toISOString().split("T")[0];
       const isFuture = cell > today;
-      col.unshift({ date: dateStr, trained: !isFuture && dayMap.has(dateStr) });
+      const activities = (!isFuture && dayMap.get(dateStr)) || [];
+      col.push({ date: dateStr, trained: activities.length > 0, activities });
     }
     weeks.push(col);
   }
-
   return weeks;
 }
 
-function getMonthLabels(weeks: { date: string }[][]): { col: number; label: string }[] {
+// Month labels: position above the first column that starts a new month
+function getMonthLabels(weeks: CalendarCell[][]): { col: number; label: string }[] {
   const labels: { col: number; label: string }[] = [];
   let lastMonth = -1;
   for (let i = 0; i < weeks.length; i++) {
-    const firstDay = new Date(weeks[i][0].date + "T00:00:00");
-    const month = firstDay.getMonth();
+    const monday = parseLocalDate(weeks[i][0].date);
+    const month = monday.getMonth();
     if (month !== lastMonth) {
-      labels.push({ col: i, label: firstDay.toLocaleDateString("en", { month: "short" }) });
+      labels.push({ col: i, label: monday.toLocaleDateString("en", { month: "short" }) });
       lastMonth = month;
     }
   }
   return labels;
 }
 
-// ─── Custom tooltip (shared style) ───────────────────────────────────────────
+// ─── Shared tooltip box ───────────────────────────────────────────────────────
 
-function TooltipBox({ label, value, valueColor }: { label: string; value: string; valueColor: string }) {
+function TooltipBox({ label, lines }: { label: string; lines: { text: string; color: string }[] }) {
   return (
     <div style={{
       background: "hsl(var(--card))",
@@ -107,8 +128,12 @@ function TooltipBox({ label, value, valueColor }: { label: string; value: string
       pointerEvents: "none",
       whiteSpace: "nowrap",
     }}>
-      <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: 3, fontSize: 11 }}>{label}</p>
-      <p style={{ color: valueColor, fontFamily: "monospace", fontWeight: 600, fontSize: 13 }}>{value}</p>
+      <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: lines.length ? 4 : 0, fontSize: 11 }}>{label}</p>
+      {lines.map((l, i) => (
+        <p key={i} style={{ color: l.color, fontFamily: "monospace", fontWeight: 600, fontSize: 13, marginTop: i > 0 ? 2 : 0 }}>
+          {l.text}
+        </p>
+      ))}
     </div>
   );
 }
@@ -116,9 +141,7 @@ function TooltipBox({ label, value, valueColor }: { label: string; value: string
 // ─── Toggle button ─────────────────────────────────────────────────────────────
 
 function Toggle<T extends string>({
-  options,
-  value,
-  onChange,
+  options, value, onChange,
 }: {
   options: { label: string; value: T }[];
   value: T;
@@ -148,7 +171,7 @@ function Toggle<T extends string>({
 export default function Stats() {
   const [chartMode, setChartMode] = useState<ChartMode>("hours");
   const [sportFilter, setSportFilter] = useState<SportFilter>("All");
-  const [hoverCell, setHoverCell] = useState<{ date: string; trained: boolean; x: number; y: number } | null>(null);
+  const [hoverCell, setHoverCell] = useState<{ cell: CalendarCell; x: number; y: number } | null>(null);
   const heatmapRef = useRef<HTMLDivElement>(null);
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
@@ -168,8 +191,7 @@ export default function Stats() {
 
   const weeklyChartData = useMemo(() =>
     weeklyStats?.map((w) => ({
-      weekLabel: new Date(w.week_start + "T00:00:00").toLocaleDateString("en", { month: "short", day: "numeric" }),
-      weekStart: w.week_start,
+      weekLabel: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
       weekRange: formatWeekRange(w.week_start),
       hours: parseFloat((w.moving_time / 3600).toFixed(2)),
       km: measurePref === "imperial"
@@ -181,23 +203,23 @@ export default function Stats() {
 
   const latestIdx = (weeklyChartData?.length ?? 0) - 1;
 
-  const calendarGrid = useMemo(() =>
-    dailyStats ? buildCalendarGrid(dailyStats, sportFilter) : [],
+  const calendarGrid = useMemo(
+    () => dailyStats ? buildCalendarGrid(dailyStats, sportFilter) : [],
     [dailyStats, sportFilter]
   );
 
   const monthLabels = useMemo(() => getMonthLabels(calendarGrid), [calendarGrid]);
   const activeColor = SPORT_COLOR[sportFilter];
 
-  // Custom recharts tooltip
   const CustomBarTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
     const row = payload[0].payload as { weekRange: string; hours: number; km: number };
-    const val = chartMode === "hours"
-      ? `${row.hours.toFixed(2)} h`
-      : `${row.km} ${distUnit}`;
-    return <TooltipBox label={row.weekRange} value={val} valueColor="hsl(15 90% 55%)" />;
+    const val = chartMode === "hours" ? `${row.hours.toFixed(2)} h` : `${row.km} ${distUnit}`;
+    return <TooltipBox label={row.weekRange} lines={[{ text: val, color: "hsl(15 90% 55%)" }]} />;
   };
+
+  // Day-of-week labels: Mon(0)…Sun(6), show Mon/Wed/Fri/Sun
+  const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
     <div className="space-y-8">
@@ -281,21 +303,26 @@ export default function Stats() {
                 style={{
                   position: "absolute",
                   left: hoverCell.x,
-                  top: hoverCell.y - 58,
-                  transform: "translateX(-50%)",
+                  top: hoverCell.y - 10,
+                  transform: "translate(-50%, -100%)",
                   zIndex: 50,
-                  pointerEvents: "none",
                 }}
               >
                 <TooltipBox
-                  label={formatDayLabel(hoverCell.date)}
-                  value={hoverCell.trained ? "Trained" : "Rest"}
-                  valueColor={hoverCell.trained ? activeColor : "hsl(var(--muted-foreground))"}
+                  label={formatDayLabel(hoverCell.cell.date)}
+                  lines={
+                    hoverCell.cell.activities.length > 0
+                      ? hoverCell.cell.activities.map((a) => ({
+                          text: `${a.sport_type}${a.distance ? `  ${formatDist(a.distance, measurePref)}` : ""}`,
+                          color: activeColor,
+                        }))
+                      : [{ text: "Rest", color: "hsl(var(--muted-foreground))" }]
+                  }
                 />
               </div>
             )}
 
-            {/* Month labels */}
+            {/* Month labels aligned with week columns */}
             <div className="flex w-full mb-1" style={{ paddingLeft: 30 }}>
               {calendarGrid.map((_, colIdx) => {
                 const label = monthLabels.find((m) => m.col === colIdx);
@@ -313,9 +340,9 @@ export default function Stats() {
 
             {/* Grid */}
             <div className="flex w-full gap-[2px]">
-              {/* Day-of-week labels */}
+              {/* Day-of-week labels: Mon … Sun */}
               <div className="flex flex-col gap-[2px] shrink-0" style={{ width: 28 }}>
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+                {DAY_LABELS.map((d, i) => (
                   <div
                     key={d}
                     className="text-[9px] text-muted-foreground flex items-center"
@@ -344,8 +371,7 @@ export default function Stats() {
                         const rect = (e.target as HTMLElement).getBoundingClientRect();
                         const containerRect = heatmapRef.current.getBoundingClientRect();
                         setHoverCell({
-                          date: cell.date,
-                          trained: cell.trained,
+                          cell,
                           x: rect.left - containerRect.left + rect.width / 2,
                           y: rect.top - containerRect.top,
                         });
