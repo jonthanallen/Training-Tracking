@@ -19,7 +19,7 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     if (!containerRef.current || !latlng || latlng.length < 2) return;
 
     const map = L.map(containerRef.current, {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: false,
       scrollWheelZoom: true,
       dragging: true,
@@ -62,21 +62,34 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     const initialBounds = polyline.getBounds();
     map.fitBounds(initialBounds, { padding: [8, 8] });
 
-    const ResetControl = L.Control.extend({
+    const ZoomResetControl = L.Control.extend({
       options: { position: "topleft" },
       onAdd() {
-        const btn = L.DomUtil.create("button", "leaflet-bar leaflet-control");
-        btn.title = "Reset view";
-        btn.style.cssText = "width:26px;height:26px;font-size:14px;cursor:pointer;background:#fff;border:none;display:flex;align-items:center;justify-content:center;";
-        btn.innerHTML = "⌖";
-        L.DomEvent.on(btn, "click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          map.fitBounds(initialBounds, { padding: [8, 8] });
-        });
-        return btn;
+        const bar = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+        const btnStyle = "width:26px;height:26px;font-size:16px;line-height:26px;cursor:pointer;background:#fff;border:none;display:block;text-align:center;text-decoration:none;color:#444;";
+
+        const zoomIn = L.DomUtil.create("a", "", bar) as HTMLAnchorElement;
+        zoomIn.innerHTML = "+";
+        zoomIn.title = "Zoom in";
+        zoomIn.style.cssText = btnStyle;
+        L.DomEvent.on(zoomIn, "click", (e) => { L.DomEvent.stopPropagation(e); map.zoomIn(); });
+
+        const zoomOut = L.DomUtil.create("a", "", bar) as HTMLAnchorElement;
+        zoomOut.innerHTML = "−";
+        zoomOut.title = "Zoom out";
+        zoomOut.style.cssText = btnStyle;
+        L.DomEvent.on(zoomOut, "click", (e) => { L.DomEvent.stopPropagation(e); map.zoomOut(); });
+
+        const reset = L.DomUtil.create("a", "", bar) as HTMLAnchorElement;
+        reset.innerHTML = "⌖";
+        reset.title = "Reset view";
+        reset.style.cssText = btnStyle;
+        L.DomEvent.on(reset, "click", (e) => { L.DomEvent.stopPropagation(e); map.fitBounds(initialBounds, { padding: [8, 8] }); });
+
+        return bar;
       },
     });
-    new ResetControl().addTo(map);
+    new ZoomResetControl().addTo(map);
 
     return () => {
       map.remove();
