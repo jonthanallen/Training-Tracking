@@ -56,7 +56,7 @@ function parseLocalDate(dateStr: string): Date {
 const SPORT_COLOR: Record<SportFilter, string> = {
   All:   "hsl(15 90% 55%)",
   Ride:  "hsl(145 70% 42%)",
-  Run:   "hsl(0 85% 52%)",
+  Run:   "hsl(5 65% 62%)",
   Swim:  "hsl(207 90% 48%)",
   Other: "hsl(0 0% 55%)",
 };
