@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGetAthlete, useGetActivity, useGetActivityStreams, getGetAthleteQueryKey, getGetActivityQueryKey, getGetActivityStreamsQueryKey } from "@workspace/api-client-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,46 +109,151 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
   );
 }
 
-function ElevationChart({ altitude, distance, measurePref }: { altitude: number[]; distance: number[]; measurePref: string }) {
-  const step = Math.max(1, Math.floor(altitude.length / 300));
-  const data = altitude
-    .filter((_, i) => i % step === 0)
-    .map((alt, i) => ({
-      dist: measurePref === "imperial"
-        ? ((distance[i * step] ?? 0) * 0.000621371).toFixed(2)
-        : ((distance[i * step] ?? 0) / 1000).toFixed(2),
-      elev: measurePref === "imperial" ? Math.round(alt * 3.28084) : Math.round(alt),
-    }));
+type StreamSeries = { key: string; label: string; color: string };
+
+const SERIES: StreamSeries[] = [
+  { key: "elev",    label: "Elevation",  color: "hsl(220 10% 60%)" },
+  { key: "hr",      label: "Heart Rate", color: "hsl(4 75% 57%)"   },
+  { key: "speed",   label: "Speed",      color: "hsl(210 85% 60%)" },
+  { key: "power",   label: "Power",      color: "hsl(45 90% 55%)"  },
+  { key: "cadence", label: "Cadence",    color: "hsl(270 65% 65%)" },
+];
+
+function normalize(arr: number[], step: number): number[] {
+  const sampled = arr.filter((_, i) => i % step === 0);
+  const min = Math.min(...sampled), max = Math.max(...sampled);
+  const range = max - min || 1;
+  return sampled.map((v) => ((v - min) / range) * 100);
+}
+
+function ActivityChart({ streams, measurePref, sportType }: {
+  streams: { altitude?: number[]; heartrate?: number[]; velocity_smooth?: number[]; watts?: number[]; cadence?: number[]; distance?: number[] };
+  measurePref: string;
+  sportType?: string;
+}) {
+  const isImperial = measurePref === "imperial";
+  const isRide = sportType?.toLowerCase().includes("ride");
+
+  const available: Record<string, boolean> = {
+    elev:    !!(streams.altitude?.length),
+    hr:      !!(streams.heartrate?.length),
+    speed:   !!(streams.velocity_smooth?.length),
+    power:   !!(streams.watts?.length),
+    cadence: !!(streams.cadence?.length),
+  };
+
+  const [show, setShow] = useState<Record<string, boolean>>({ elev: true, hr: true, speed: true, power: true, cadence: true });
+  const toggle = (key: string) => setShow((s) => ({ ...s, [key]: !s[key] }));
+
+  const n = streams.altitude?.length ?? streams.distance?.length ?? 0;
+  const step = Math.max(1, Math.floor(n / 400));
+
+  const elevNorm    = streams.altitude        ? normalize(streams.altitude,        step) : [];
+  const hrNorm      = streams.heartrate       ? normalize(streams.heartrate,       step) : [];
+  const speedNorm   = streams.velocity_smooth ? normalize(streams.velocity_smooth, step) : [];
+  const powerNorm   = streams.watts           ? normalize(streams.watts,           step) : [];
+  const cadenceNorm = streams.cadence         ? normalize(streams.cadence,         step) : [];
+
+  const elevRaw    = streams.altitude?.filter((_, i) => i % step === 0)        ?? [];
+  const hrRaw      = streams.heartrate?.filter((_, i) => i % step === 0)       ?? [];
+  const speedRaw   = streams.velocity_smooth?.filter((_, i) => i % step === 0) ?? [];
+  const powerRaw   = streams.watts?.filter((_, i) => i % step === 0)           ?? [];
+  const cadenceRaw = streams.cadence?.filter((_, i) => i % step === 0)         ?? [];
+  const distRaw    = streams.distance?.filter((_, i) => i % step === 0)        ?? [];
+
+  const count = Math.max(elevNorm.length, hrNorm.length, speedNorm.length, powerNorm.length, cadenceNorm.length);
+  const data = Array.from({ length: count }, (_, i) => {
+    const distM = distRaw[i] ?? 0;
+    return {
+      dist: isImperial ? (distM * 0.000621371).toFixed(2) : (distM / 1000).toFixed(2),
+      elev:    elevNorm[i],    _elev:    elevRaw[i],
+      hr:      hrNorm[i],      _hr:      hrRaw[i],
+      speed:   speedNorm[i],   _speed:   speedRaw[i],
+      power:   powerNorm[i],   _power:   powerRaw[i],
+      cadence: cadenceNorm[i], _cadence: cadenceRaw[i],
+    };
+  });
+
+  function fmtTooltipVal(key: string, raw: number): string {
+    if (key === "elev")    return isImperial ? `${Math.round(raw * 3.28084)} ft` : `${Math.round(raw)} m`;
+    if (key === "hr")      return `${Math.round(raw)} bpm`;
+    if (key === "speed")   return isRide
+      ? (isImperial ? `${(raw * 2.23694).toFixed(1)} mph` : `${(raw * 3.6).toFixed(1)} km/h`)
+      : (isImperial ? `${(26.8224 / raw).toFixed(2)} /mi` : `${(16.6667 / raw).toFixed(2)} /km`);
+    if (key === "power")   return `${Math.round(raw)} W`;
+    if (key === "cadence") return `${Math.round(raw)} rpm`;
+    return String(raw);
+  }
+
+  const distSuffix = isImperial ? "mi" : "km";
+  const visibleSeries = SERIES.filter((s) => available[s.key]);
 
   return (
     <div className="bg-card border border-border rounded-lg p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Elevation Profile</h3>
-      <ResponsiveContainer width="100%" height={140}>
-        <AreaChart data={data}>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Chart</h3>
+        <div className="flex gap-1.5 flex-wrap">
+          {visibleSeries.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => toggle(s.key)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-opacity"
+              style={{
+                borderColor: s.color,
+                color: show[s.key] ? s.color : "hsl(var(--muted-foreground))",
+                background: show[s.key] ? `color-mix(in srgb, ${s.color} 12%, transparent)` : "transparent",
+                opacity: show[s.key] ? 1 : 0.5,
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: show[s.key] ? s.color : "transparent", border: `2px solid ${s.color}`, display: "inline-block" }} />
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+            <linearGradient id="elevGradGrey" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="hsl(220 10% 60%)" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="hsl(220 10% 60%)" stopOpacity={0.04} />
             </linearGradient>
           </defs>
           <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={40} />
+          <YAxis domain={[0, 100]} hide />
           <Tooltip
             content={({ active, payload, label }: TooltipProps<number, string>) => {
               if (!active || !payload?.length) return null;
-              const distSuffix = measurePref === "imperial" ? "mi" : "km";
-              const elevSuffix = measurePref === "imperial" ? "ft" : "m";
+              const pt = payload[0]?.payload as Record<string, number>;
               return (
                 <ChartTooltip
                   label={`${label} ${distSuffix}`}
-                  lines={[{ text: `${payload[0].value} ${elevSuffix}`, color: "hsl(15 90% 55%)" }]}
+                  lines={SERIES.filter((s) => available[s.key] && show[s.key] && pt[`_${s.key}`] != null).map((s) => ({
+                    text: `${s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
+                    color: s.color,
+                  }))}
                 />
               );
             }}
-            cursor={{ stroke: "hsl(var(--primary) / 0.4)", strokeWidth: 1 }}
+            cursor={{ stroke: "hsl(var(--muted-foreground) / 0.3)", strokeWidth: 1 }}
           />
-          <Area type="monotone" dataKey="elev" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#elevGrad)" />
-        </AreaChart>
+          {show.elev && available.elev && (
+            <Area type="monotone" dataKey="elev" stroke="hsl(220 10% 60%)" strokeWidth={1.5} fill="url(#elevGradGrey)" dot={false} />
+          )}
+          {show.hr && available.hr && (
+            <Line type="monotone" dataKey="hr" stroke="hsl(4 75% 57%)" strokeWidth={1.5} dot={false} />
+          )}
+          {show.speed && available.speed && (
+            <Line type="monotone" dataKey="speed" stroke="hsl(210 85% 60%)" strokeWidth={1.5} dot={false} />
+          )}
+          {show.power && available.power && (
+            <Line type="monotone" dataKey="power" stroke="hsl(45 90% 55%)" strokeWidth={1.5} dot={false} />
+          )}
+          {show.cadence && available.cadence && (
+            <Line type="monotone" dataKey="cadence" stroke="hsl(270 65% 65%)" strokeWidth={1.5} dot={false} />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
@@ -235,15 +340,15 @@ export default function ActivityDetail() {
         ))}
       </div>
 
-      {/* Map and Elevation */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {streams?.latlng && streams.latlng.length > 1 && (
-          <RouteMap latlng={streams.latlng} />
-        )}
-        {streams?.altitude && streams.distance && streams.altitude.length > 1 && (
-          <ElevationChart altitude={streams.altitude} distance={streams.distance} measurePref={measurePref} />
-        )}
-      </div>
+      {/* Map */}
+      {streams?.latlng && streams.latlng.length > 1 && (
+        <RouteMap latlng={streams.latlng} />
+      )}
+
+      {/* Activity Chart */}
+      {streams && (
+        <ActivityChart streams={streams} measurePref={measurePref} sportType={activity.sport_type} />
+      )}
 
       {/* Laps */}
       {activity.laps && activity.laps.length > 0 && (
