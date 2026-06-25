@@ -313,12 +313,12 @@ export default function Stats() {
             {/* Grid */}
             <div className="flex w-full gap-[2px]">
               {/* Day-of-week labels: Mon … Sun */}
-              <div className="flex flex-col gap-[2px] shrink-0" style={{ width: 28 }}>
-                {DAY_LABELS.map((d, i) => (
+              <div className="flex flex-col gap-[2px] shrink-0 self-stretch" style={{ width: 28 }}>
+                {DAY_LABELS.map((d) => (
                   <div
                     key={d}
                     className="text-[9px] text-muted-foreground flex items-center"
-                    style={{ height: 13, visibility: i % 2 === 0 ? "visible" : "hidden" }}
+                    style={{ flex: 1 }}
                   >
                     {d}
                   </div>
