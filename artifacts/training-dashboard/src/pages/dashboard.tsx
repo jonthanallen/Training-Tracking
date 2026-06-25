@@ -111,6 +111,15 @@ function buildWeeklyAreaData(
   }));
 }
 
+// ─── Formatters ───────────────────────────────────────────────────────────────
+
+function fmtHours(h: number): string {
+  const hrs = Math.floor(h);
+  const mins = Math.round((h - hrs) * 60);
+  if (mins === 0) return `${hrs}h`;
+  return `${hrs}h ${String(mins).padStart(2, "0")}m`;
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -149,9 +158,10 @@ export default function Dashboard() {
 
   const AreaTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
+    const v = payload[0].value as number;
     const val = chartMode === "hours"
-      ? `${payload[0].value?.toFixed(2)} h`
-      : `${payload[0].value?.toFixed(1)} ${distUnit}`;
+      ? fmtHours(v)
+      : `${v.toFixed(1)} ${distUnit}`;
     return <ChartTooltip label={String(label)} lines={[{ text: val, color: areaColor }]} />;
   };
 
@@ -255,8 +265,9 @@ export default function Dashboard() {
                   tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
-                  width={28}
+                  width={chartMode === "hours" ? 36 : 44}
                   tickCount={4}
+                  tickFormatter={(v: number) => chartMode === "hours" ? fmtHours(v) : `${v.toFixed(0)}`}
                 />
                 <Tooltip content={<AreaTooltipContent />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
                 <Area
