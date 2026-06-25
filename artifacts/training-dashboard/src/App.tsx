@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import Activities from "@/pages/activities";
 import ActivityDetail from "@/pages/activity-detail";
 import Stats from "@/pages/stats";
+import Power from "@/pages/power";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/activities" component={Activities} />
         <Route path="/activities/:id" component={ActivityDetail} />
         <Route path="/stats" component={Stats} />
+        <Route path="/power" component={Power} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -182,6 +182,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/MonthlyComparison"
 
+  /power-curve:
+    get:
+      operationId: getPowerCurve
+      tags: [stats]
+      summary: Best mean power at standard durations across bike activities
+      parameters:
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [6w, ytd, lifetime]
+            default: 6w
+      responses:
+        "200":
+          description: Power curve data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PowerCurvePoint"
+
   /stats/daily:
     get:
       operationId: getDailyStats
@@ -579,6 +601,17 @@ components:
               last_month_km:
                 type: ["number", "null"]
                 description: Kilometres covered on this day last month
+
+    PowerCurvePoint:
+      type: object
+      required: [seconds, label, watts]
+      properties:
+        seconds:
+          type: integer
+        label:
+          type: string
+        watts:
+          type: ["number", "null"]
 
     DailyActivity:
       type: object

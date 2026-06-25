@@ -302,6 +302,23 @@ export const GetMonthlyStatsResponse = zod.object({
 
 
 /**
+ * @summary Best mean power at standard durations across bike activities
+ */
+export const getPowerCurveQueryRangeDefault = `6w`;
+
+export const GetPowerCurveQueryParams = zod.object({
+  "range": zod.enum(['6w', 'ytd', 'lifetime']).default(getPowerCurveQueryRangeDefault)
+})
+
+export const GetPowerCurveResponseItem = zod.object({
+  "seconds": zod.number(),
+  "label": zod.string(),
+  "watts": zod.number().nullable()
+})
+export const GetPowerCurveResponse = zod.array(GetPowerCurveResponseItem)
+
+
+/**
  * @summary Get per-day activity totals for heatmap rendering
  */
 export const getDailyStatsQueryDaysDefault = 364;

@@ -1,6 +1,6 @@
 import { useGetAthlete, getGetAthleteQueryKey } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
-import { Activity, LayoutDashboard, List, BarChart3, Settings, Menu } from "lucide-react";
+import { Activity, LayoutDashboard, List, BarChart3, Zap, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -17,6 +17,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/activities", label: "Activities", icon: List },
     { href: "/stats", label: "Trends", icon: BarChart3 },
+    { href: "/power", label: "Power", icon: Zap },
   ];
 
   const SidebarContent = () => (

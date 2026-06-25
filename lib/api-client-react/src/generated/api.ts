@@ -23,10 +23,12 @@ import type {
   AthleteStats,
   DailyActivity,
   GetDailyStatsParams,
+  GetPowerCurveParams,
   GetWeeklyStatsParams,
   HealthStatus,
   ListActivitiesParams,
   MonthlyComparison,
+  PowerCurvePoint,
   SportTypeCount,
   WeeklyTotal
 } from './api.schemas';
@@ -753,6 +755,90 @@ export function useGetMonthlyStats<TData = Awaited<ReturnType<typeof getMonthlyS
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMonthlyStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPowerCurveUrl = (params?: GetPowerCurveParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/power-curve?${stringifiedParams}` : `/api/power-curve`
+}
+
+/**
+ * @summary Best mean power at standard durations across bike activities
+ */
+export const getPowerCurve = async (params?: GetPowerCurveParams, options?: RequestInit): Promise<PowerCurvePoint[]> => {
+
+  return customFetch<PowerCurvePoint[]>(getGetPowerCurveUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPowerCurveQueryKey = (params?: GetPowerCurveParams,) => {
+    return [
+    `/api/power-curve`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPowerCurveQueryOptions = <TData = Awaited<ReturnType<typeof getPowerCurve>>, TError = ErrorType<unknown>>(params?: GetPowerCurveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPowerCurve>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPowerCurveQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPowerCurve>>> = ({ signal }) => getPowerCurve(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPowerCurve>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPowerCurveQueryResult = NonNullable<Awaited<ReturnType<typeof getPowerCurve>>>
+export type GetPowerCurveQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Best mean power at standard durations across bike activities
+ */
+
+export function useGetPowerCurve<TData = Awaited<ReturnType<typeof getPowerCurve>>, TError = ErrorType<unknown>>(
+ params?: GetPowerCurveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPowerCurve>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPowerCurveQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

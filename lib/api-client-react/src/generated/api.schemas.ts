@@ -241,6 +241,13 @@ export interface MonthlyComparison {
   days: MonthlyComparisonDaysItem[];
 }
 
+export interface PowerCurvePoint {
+  seconds: number;
+  label: string;
+  /** @nullable */
+  watts: number | null;
+}
+
 export interface DailyActivity {
   /** ISO date YYYY-MM-DD in local time */
   date: string;
@@ -271,6 +278,19 @@ after?: number | null;
 export type GetWeeklyStatsParams = {
 weeks?: number;
 };
+
+export type GetPowerCurveParams = {
+range?: GetPowerCurveRange;
+};
+
+export type GetPowerCurveRange = typeof GetPowerCurveRange[keyof typeof GetPowerCurveRange];
+
+
+export const GetPowerCurveRange = {
+  '6w': '6w',
+  ytd: 'ytd',
+  lifetime: 'lifetime',
+} as const;
 
 export type GetDailyStatsParams = {
 days?: number;
