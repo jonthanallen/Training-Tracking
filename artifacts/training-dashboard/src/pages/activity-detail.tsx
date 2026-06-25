@@ -210,7 +210,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
         onClick={() => setCollapsed((c) => !c)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
       >
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Chart</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</h3>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${collapsed ? "-rotate-90" : ""}`} />
       </button>
       {!collapsed && <div className="px-4 pb-4">
@@ -243,7 +243,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
               <stop offset="95%" stopColor="hsl(220 10% 60%)" stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickCount={20} />
           <YAxis domain={[0, 100]} hide />
           <Tooltip
             content={({ active, payload, label }: TooltipProps<number, string>) => {
