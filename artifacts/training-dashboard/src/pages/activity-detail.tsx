@@ -59,7 +59,24 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     L.marker(latLngs[0], { icon: startIcon }).addTo(map);
     L.marker(latLngs[latLngs.length - 1], { icon: endIcon }).addTo(map);
 
-    map.fitBounds(polyline.getBounds(), { padding: [8, 8] });
+    const initialBounds = polyline.getBounds();
+    map.fitBounds(initialBounds, { padding: [8, 8] });
+
+    const ResetControl = L.Control.extend({
+      options: { position: "topleft" },
+      onAdd() {
+        const btn = L.DomUtil.create("button", "leaflet-bar leaflet-control");
+        btn.title = "Reset view";
+        btn.style.cssText = "width:26px;height:26px;font-size:14px;cursor:pointer;background:#fff;border:none;display:flex;align-items:center;justify-content:center;";
+        btn.innerHTML = "⌖";
+        L.DomEvent.on(btn, "click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          map.fitBounds(initialBounds, { padding: [8, 8] });
+        });
+        return btn;
+      },
+    });
+    new ResetControl().addTo(map);
 
     return () => {
       map.remove();
