@@ -373,17 +373,12 @@ export default function Stats() {
 
               {calendarGrid.map((week, colIdx) => {
                 const isSelectedWeek = selectedRange.type === "week" && week[0].date === selectedRange.weekStart;
+                const dimWeek = selectedRange.type === "week" && !isSelectedWeek;
                 return (
                 <div
                   key={colIdx}
                   className="flex flex-col gap-[2px]"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    outline: isSelectedWeek ? "2px solid hsl(var(--primary))" : "none",
-                    outlineOffset: 2,
-                    borderRadius: 3,
-                  }}
+                  style={{ flex: 1, minWidth: 0, opacity: dimWeek ? 0.3 : 1 }}
                 >
                   {week.map((cell) => {
                     const isSelected = selectedRange.type === "day" && selectedRange.date === cell.date;
