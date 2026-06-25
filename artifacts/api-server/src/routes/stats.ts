@@ -25,15 +25,13 @@ router.get("/stats", async (req, res) => {
 router.get("/stats/weekly", async (req, res) => {
   try {
     const weeks = Math.min(Number(req.query.weeks ?? 12), 52);
-    // Fetch enough activities to cover the requested weeks
-    const perPage = Math.min(weeks * 10, 200);
-    const activities = await stravaFetch("/athlete/activities", {
-      per_page: perPage,
-      page: 1,
-    }) as Array<Record<string, unknown>>;
 
-    // Group by week_start (Monday)
-    const weekMap = new Map<string, { distance: number; moving_time: number; elevation_gain: number; count: number; sport_type: string }>();
+    // Fetch up to 2 pages (400 activities) to cover dense training over 52 weeks
+    const [page1, page2] = await Promise.all([
+      stravaFetch("/athlete/activities", { per_page: 200, page: 1 }) as Promise<Array<Record<string, unknown>>>,
+      stravaFetch("/athlete/activities", { per_page: 200, page: 2 }) as Promise<Array<Record<string, unknown>>>,
+    ]);
+    const activities = [...(page1 ?? []), ...(page2 ?? [])];
 
     const getMondayISO = (date: Date): string => {
       const d = new Date(date);
@@ -43,8 +41,23 @@ router.get("/stats/weekly", async (req, res) => {
       return d.toISOString().split("T")[0];
     };
 
+    // Pre-fill all `weeks` slots with zeros so every week appears even if empty
+    const weekMap = new Map<string, { distance: number; moving_time: number; elevation_gain: number; count: number; sport_type: string }>();
+    const now = new Date();
+    for (let i = weeks - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i * 7);
+      const key = getMondayISO(d);
+      weekMap.set(key, { distance: 0, moving_time: 0, elevation_gain: 0, count: 0, sport_type: "" });
+    }
+
+    // Cutoff: ignore activities older than `weeks` weeks
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+
     for (const act of activities) {
       const startDate = new Date(act.start_date as string);
+      if (startDate < cutoff) continue;
       const weekStart = getMondayISO(startDate);
       const existing = weekMap.get(weekStart);
       if (existing) {
@@ -52,22 +65,13 @@ router.get("/stats/weekly", async (req, res) => {
         existing.moving_time += (act.moving_time as number) || 0;
         existing.elevation_gain += (act.total_elevation_gain as number) || 0;
         existing.count += 1;
-      } else {
-        weekMap.set(weekStart, {
-          distance: (act.distance as number) || 0,
-          moving_time: (act.moving_time as number) || 0,
-          elevation_gain: (act.total_elevation_gain as number) || 0,
-          count: 1,
-          sport_type: (act.sport_type as string) || "Workout",
-        });
+        if (!existing.sport_type) existing.sport_type = (act.sport_type as string) || "Workout";
       }
     }
 
-    // Sort by week descending and take `weeks` most recent
+    // Return in chronological order
     const sorted = Array.from(weekMap.entries())
-      .sort(([a], [b]) => b.localeCompare(a))
-      .slice(0, weeks)
-      .reverse()
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([week_start, data]) => ({ week_start, ...data }));
 
     res.json(sorted);
