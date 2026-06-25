@@ -165,7 +165,7 @@ export default function Activities() {
                         </p>
                       )}
                     </div>
-                    {act.sport_type?.toLowerCase().includes("ride") && act.average_watts && (
+                    {act.sport_type?.toLowerCase().includes("ride") && act.device_watts && act.average_watts && (
                       <div className="text-right">
                         <p className="text-foreground flex items-center justify-end gap-1">
                           <Zap className="w-3 h-3 text-yellow-500" />

@@ -58,6 +58,8 @@ export interface Activity {
   /** @nullable */
   weighted_average_watts?: number | null;
   /** @nullable */
+  device_watts?: boolean | null;
+  /** @nullable */
   kilojoules?: number | null;
   /** @nullable */
   suffer_score?: number | null;
@@ -138,6 +140,8 @@ export interface ActivityDetail {
   max_watts?: number | null;
   /** @nullable */
   weighted_average_watts?: number | null;
+  /** @nullable */
+  device_watts?: boolean | null;
   /** @nullable */
   kilojoules?: number | null;
   /** @nullable */

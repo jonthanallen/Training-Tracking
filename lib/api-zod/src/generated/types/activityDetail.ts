@@ -36,6 +36,8 @@ export interface ActivityDetail {
   /** @nullable */
   weighted_average_watts?: number | null;
   /** @nullable */
+  device_watts?: boolean | null;
+  /** @nullable */
   kilojoules?: number | null;
   /** @nullable */
   suffer_score?: number | null;

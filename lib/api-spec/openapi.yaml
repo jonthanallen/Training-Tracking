@@ -275,6 +275,8 @@ components:
           type: ["number", "null"]
         weighted_average_watts:
           type: ["number", "null"]
+        device_watts:
+          type: ["boolean", "null"]
         kilojoules:
           type: ["number", "null"]
         suffer_score:
@@ -326,6 +328,8 @@ components:
           type: ["number", "null"]
         weighted_average_watts:
           type: ["number", "null"]
+        device_watts:
+          type: ["boolean", "null"]
         kilojoules:
           type: ["number", "null"]
         suffer_score:

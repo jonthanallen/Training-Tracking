@@ -364,8 +364,8 @@ export default function ActivityDetail() {
     { label: isRide ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
     ...(!activity.sport_type?.toLowerCase().includes("swim") ? [{ label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain }] : []),
     { label: "Avg HR", value: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : "—", icon: Heart },
-    ...(activity.average_watts && !activity.sport_type?.toLowerCase().includes("run") ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
-    ...(np !== null ? [{ label: "NP", value: `${np}W`, icon: Zap }] : []),
+    ...(activity.device_watts && activity.average_watts ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
+    ...(activity.device_watts && np !== null ? [{ label: "NP", value: `${np}W`, icon: Zap }] : []),
     ...(activity.kilojoules ? [{ label: "Energy", value: `${Math.round(activity.kilojoules)} kJ`, icon: Flame }] : []),
   ];
 
