@@ -204,6 +204,10 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const distSuffix = isImperial ? "mi" : "km";
   const visibleSeries = SERIES.filter((s) => available[s.key]);
 
+  const maxTicks = 20;
+  const tickStep = Math.max(1, Math.floor(data.length / maxTicks));
+  const axisTicks = data.filter((_, i) => i % tickStep === 0).map((d) => d.dist);
+
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       <button
@@ -243,7 +247,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
               <stop offset="95%" stopColor="hsl(220 10% 60%)" stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickCount={20} />
+          <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} ticks={axisTicks} />
           <YAxis domain={[0, 100]} hide />
           <Tooltip
             content={({ active, payload, label }: TooltipProps<number, string>) => {
