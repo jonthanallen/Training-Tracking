@@ -276,7 +276,7 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
                 <ChartTooltip
                   label={`${(label as number).toFixed(2)} ${distSuffix}`}
                   lines={SERIES.filter((s) => available[s.key] && show[s.key] && pt[`_${s.key}`] != null).map((s) => ({
-                    text: `${s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
+                    text: `${s.key === "speed" && isSwim ? "Pace" : s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
                     color: s.color,
                   }))}
                 />
