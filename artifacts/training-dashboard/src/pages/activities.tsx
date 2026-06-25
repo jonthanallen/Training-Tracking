@@ -156,7 +156,7 @@ export default function Activities() {
             variant="outline"
             onClick={() => setPage((p) => p + 1)}
             disabled={isFetching}
-            className="gap-2 text-foreground"
+            className="gap-2 text-foreground cursor-pointer"
           >
             <ChevronDown className="w-4 h-4" />
             {isFetching ? "Loading..." : "Load more"}
