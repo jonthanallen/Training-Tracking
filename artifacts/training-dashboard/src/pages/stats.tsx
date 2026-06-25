@@ -8,7 +8,7 @@ import {
   getGetDailyStatsQueryKey,
 } from "@workspace/api-client-react";
 import type { DailyActivity } from "@workspace/api-client-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -201,7 +201,7 @@ export default function Stats() {
     [weeklyStats, measurePref]
   );
 
-  const latestIdx = (weeklyChartData?.length ?? 0) - 1;
+
 
   const calendarGrid = useMemo(
     () => dailyStats ? buildCalendarGrid(dailyStats, sportFilter) : [],
@@ -263,14 +263,7 @@ export default function Stats() {
                 width={28}
               />
               <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-              <Bar dataKey={chartMode} radius={[2, 2, 0, 0]}>
-                {weeklyChartData?.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={i === latestIdx ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.45)"}
-                  />
-                ))}
-              </Bar>
+              <Bar dataKey={chartMode} radius={[2, 2, 0, 0]} fill="hsl(var(--primary))" />
             </BarChart>
           </ResponsiveContainer>
         )}
