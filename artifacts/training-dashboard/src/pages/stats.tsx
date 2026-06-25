@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   useGetAthlete,
   useGetWeeklyStats,
@@ -9,12 +9,33 @@ import {
 } from "@workspace/api-client-react";
 import type { DailyActivity } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ChartMode = "hours" | "km";
 type SportFilter = "All" | "Ride" | "Run" | "Swim" | "Other";
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function formatWeekRange(weekStart: string): string {
+  // weekStart is YYYY-MM-DD (Monday). Add a timezone offset fix so Date parses as local.
+  const start = new Date(weekStart + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const startMonth = start.toLocaleDateString("en", { month: "short" });
+  const endMonth = end.toLocaleDateString("en", { month: "short" });
+  if (startMonth === endMonth) {
+    return `${startMonth} ${start.getDate()} - ${end.getDate()}`;
+  }
+  return `${startMonth} ${start.getDate()} - ${endMonth} ${end.getDate()}`;
+}
+
+function formatDayLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
+}
 
 // ─── Heatmap helpers ──────────────────────────────────────────────────────────
 
@@ -26,7 +47,6 @@ const SPORT_COLOR: Record<SportFilter, string> = {
   Other: "hsl(0 0% 55%)",
 };
 
-// Build a grid covering exactly 52 full weeks ending on the next Saturday
 function buildCalendarGrid(
   dailyData: DailyActivity[],
   sport: SportFilter
@@ -64,7 +84,7 @@ function getMonthLabels(weeks: { date: string }[][]): { col: number; label: stri
   const labels: { col: number; label: string }[] = [];
   let lastMonth = -1;
   for (let i = 0; i < weeks.length; i++) {
-    const firstDay = new Date(weeks[i][0].date);
+    const firstDay = new Date(weeks[i][0].date + "T00:00:00");
     const month = firstDay.getMonth();
     if (month !== lastMonth) {
       labels.push({ col: i, label: firstDay.toLocaleDateString("en", { month: "short" }) });
@@ -72,6 +92,25 @@ function getMonthLabels(weeks: { date: string }[][]): { col: number; label: stri
     }
   }
   return labels;
+}
+
+// ─── Custom tooltip (shared style) ───────────────────────────────────────────
+
+function TooltipBox({ label, value, valueColor }: { label: string; value: string; valueColor: string }) {
+  return (
+    <div style={{
+      background: "hsl(var(--card))",
+      border: "1px solid hsl(var(--border))",
+      borderRadius: 6,
+      padding: "7px 11px",
+      fontSize: 12,
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+    }}>
+      <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: 3, fontSize: 11 }}>{label}</p>
+      <p style={{ color: valueColor, fontFamily: "monospace", fontWeight: 600, fontSize: 13 }}>{value}</p>
+    </div>
+  );
 }
 
 // ─── Toggle button ─────────────────────────────────────────────────────────────
@@ -109,6 +148,8 @@ function Toggle<T extends string>({
 export default function Stats() {
   const [chartMode, setChartMode] = useState<ChartMode>("hours");
   const [sportFilter, setSportFilter] = useState<SportFilter>("All");
+  const [hoverCell, setHoverCell] = useState<{ date: string; trained: boolean; x: number; y: number } | null>(null);
+  const heatmapRef = useRef<HTMLDivElement>(null);
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const measurePref = athlete?.measurement_preference ?? "metric";
@@ -123,9 +164,13 @@ export default function Stats() {
     { query: { queryKey: getGetDailyStatsQueryKey({ days: 364 }) } }
   );
 
+  const distUnit = measurePref === "imperial" ? "mi" : "km";
+
   const weeklyChartData = useMemo(() =>
     weeklyStats?.map((w) => ({
-      week: new Date(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      weekLabel: new Date(w.week_start + "T00:00:00").toLocaleDateString("en", { month: "short", day: "numeric" }),
+      weekStart: w.week_start,
+      weekRange: formatWeekRange(w.week_start),
       hours: parseFloat((w.moving_time / 3600).toFixed(2)),
       km: measurePref === "imperial"
         ? parseFloat((w.distance * 0.000621371).toFixed(1))
@@ -143,7 +188,16 @@ export default function Stats() {
 
   const monthLabels = useMemo(() => getMonthLabels(calendarGrid), [calendarGrid]);
   const activeColor = SPORT_COLOR[sportFilter];
-  const distUnit = measurePref === "imperial" ? "mi" : "km";
+
+  // Custom recharts tooltip
+  const CustomBarTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (!active || !payload?.length) return null;
+    const row = payload[0].payload as { weekRange: string; hours: number; km: number };
+    const val = chartMode === "hours"
+      ? `${row.hours.toFixed(2)} h`
+      : `${row.km} ${distUnit}`;
+    return <TooltipBox label={row.weekRange} value={val} valueColor="hsl(15 90% 55%)" />;
+  };
 
   return (
     <div className="space-y-8">
@@ -174,7 +228,7 @@ export default function Stats() {
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={weeklyChartData} barSize={14} barCategoryGap="4%">
               <XAxis
-                dataKey="week"
+                dataKey="weekLabel"
                 tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
@@ -186,20 +240,7 @@ export default function Stats() {
                 tickLine={false}
                 width={28}
               />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  color: "hsl(var(--foreground))",
-                }}
-                formatter={(v: number) =>
-                  chartMode === "hours"
-                    ? [`${v.toFixed(2)} h`, "Hours"]
-                    : [`${v} ${distUnit}`, "Distance"]
-                }
-              />
+              <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
               <Bar dataKey={chartMode} radius={[2, 2, 0, 0]}>
                 {weeklyChartData?.map((_, i) => (
                   <Cell
@@ -233,8 +274,28 @@ export default function Stats() {
         {loadingDaily ? (
           <Skeleton className="h-24 w-full" />
         ) : (
-          <div className="w-full">
-            {/* Month labels — aligned to week columns */}
+          <div className="w-full relative" ref={heatmapRef}>
+            {/* Floating tooltip */}
+            {hoverCell && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: hoverCell.x,
+                  top: hoverCell.y - 58,
+                  transform: "translateX(-50%)",
+                  zIndex: 50,
+                  pointerEvents: "none",
+                }}
+              >
+                <TooltipBox
+                  label={formatDayLabel(hoverCell.date)}
+                  value={hoverCell.trained ? "Trained" : "Rest"}
+                  valueColor={hoverCell.trained ? activeColor : "hsl(var(--muted-foreground))"}
+                />
+              </div>
+            )}
+
+            {/* Month labels */}
             <div className="flex w-full mb-1" style={{ paddingLeft: 30 }}>
               {calendarGrid.map((_, colIdx) => {
                 const label = monthLabels.find((m) => m.col === colIdx);
@@ -265,26 +326,33 @@ export default function Stats() {
                 ))}
               </div>
 
-              {/* Week columns — fill remaining width equally */}
+              {/* Week columns */}
               {calendarGrid.map((week, colIdx) => (
                 <div key={colIdx} className="flex flex-col gap-[2px]" style={{ flex: 1, minWidth: 0 }}>
-                  {week.map((cell) => {
-                    const bg = cell.trained
-                      ? activeColor
-                      : "hsl(var(--muted))";
-                    return (
-                      <div
-                        key={cell.date}
-                        title={`${cell.date}${cell.trained ? " ✓" : ""}`}
-                        style={{
-                          width: "100%",
-                          aspectRatio: "1 / 1",
-                          borderRadius: 2,
-                          backgroundColor: bg,
-                        }}
-                      />
-                    );
-                  })}
+                  {week.map((cell) => (
+                    <div
+                      key={cell.date}
+                      style={{
+                        width: "100%",
+                        aspectRatio: "1 / 1",
+                        borderRadius: 2,
+                        backgroundColor: cell.trained ? activeColor : "hsl(var(--muted))",
+                        cursor: "default",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!heatmapRef.current) return;
+                        const rect = (e.target as HTMLElement).getBoundingClientRect();
+                        const containerRect = heatmapRef.current.getBoundingClientRect();
+                        setHoverCell({
+                          date: cell.date,
+                          trained: cell.trained,
+                          x: rect.left - containerRect.left + rect.width / 2,
+                          y: rect.top - containerRect.top,
+                        });
+                      }}
+                      onMouseLeave={() => setHoverCell(null)}
+                    />
+                  ))}
                 </div>
               ))}
             </div>
