@@ -201,9 +201,14 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
         const s = Math.floor(secs % 60);
         return `${m}:${s.toString().padStart(2, "0")}/100m`;
       }
-      return isRide
-        ? (isImperial ? `${(raw * 2.23694).toFixed(1)} mph` : `${(raw * 3.6).toFixed(1)} km/h`)
-        : (isImperial ? `${(26.8224 / raw).toFixed(2)} /mi` : `${(16.6667 / raw).toFixed(2)} /km`);
+      if (isRide) {
+        return isImperial ? `${(raw * 2.23694).toFixed(1)} mph` : `${(raw * 3.6).toFixed(1)} km/h`;
+      }
+      // Run / Walk / Hike — pace as mm:ss/km or mm:ss/mi
+      const totalSecs = isImperial ? 1609.34 / raw : 1000 / raw;
+      const pm = Math.floor(totalSecs / 60);
+      const ps = Math.floor(totalSecs % 60);
+      return `${pm}:${ps.toString().padStart(2, "0")} /${isImperial ? "mi" : "km"}`;
     }
     if (key === "power")   return `${Math.round(raw)} W`;
     if (key === "cadence") return `${Math.round(raw)} rpm`;
@@ -252,7 +257,7 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
               }}
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: show[s.key] ? s.color : "transparent", border: `2px solid ${s.color}`, display: "inline-block" }} />
-              {s.key === "speed" && isSwim ? "Pace" : s.label}
+              {s.key === "speed" && (isSwim || isRun) ? "Pace" : s.label}
             </button>
           ))}
         </div>
@@ -276,7 +281,7 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
                 <ChartTooltip
                   label={`${(label as number).toFixed(2)} ${distSuffix}`}
                   lines={SERIES.filter((s) => available[s.key] && show[s.key] && pt[`_${s.key}`] != null).map((s) => ({
-                    text: `${s.key === "speed" && isSwim ? "Pace" : s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
+                    text: `${s.key === "speed" && (isSwim || isRun) ? "Pace" : s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
                     color: s.color,
                   }))}
                 />
