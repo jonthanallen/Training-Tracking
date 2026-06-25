@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetAthlete, useGetActivity, useGetActivityStreams, getGetAthleteQueryKey, getGetActivityQueryKey, getGetActivityStreamsQueryKey } from "@workspace/api-client-react";
-import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -139,10 +139,11 @@ function normalize(arr: number[], step: number): number[] {
   return sampled.map((v) => ((v - min) / range) * 100);
 }
 
-function ActivityChart({ streams, measurePref, sportType }: {
+function ActivityChart({ streams, measurePref, sportType, laps }: {
   streams: { altitude?: number[]; heartrate?: number[]; velocity_smooth?: number[]; watts?: number[]; cadence?: number[]; distance?: number[] };
   measurePref: string;
   sportType?: string;
+  laps?: { end_index?: number | null; distance?: number | null }[];
 }) {
   const isImperial = measurePref === "imperial";
   const isRide = sportType?.toLowerCase().includes("ride");
@@ -203,6 +204,15 @@ function ActivityChart({ streams, measurePref, sportType }: {
 
   const distSuffix = isImperial ? "mi" : "km";
   const visibleSeries = SERIES.filter((s) => available[s.key]);
+
+  const lapBoundaries: number[] = (laps ?? [])
+    .slice(0, -1)
+    .map((lap) => {
+      const rawDist = lap.end_index != null ? (streams.distance?.[lap.end_index] ?? null) : null;
+      if (rawDist != null) return isImperial ? rawDist * 0.000621371 : rawDist / 1000;
+      return null;
+    })
+    .filter((v): v is number => v != null);
 
   const maxDistVal = (data[data.length - 1]?.dist as number) ?? 0;
   const axisTicks = Array.from({ length: 20 }, (_, i) =>
@@ -281,6 +291,9 @@ function ActivityChart({ streams, measurePref, sportType }: {
           {show.cadence && available.cadence && (
             <Line type="monotone" dataKey="cadence" stroke="hsl(270 65% 65%)" strokeWidth={1.5} dot={false} />
           )}
+          {lapBoundaries.map((x, i) => (
+            <ReferenceLine key={i} x={x} stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 3" />
+          ))}
         </ComposedChart>
       </ResponsiveContainer>
       </div>}
@@ -377,7 +390,7 @@ export default function ActivityDetail() {
 
       {/* Activity Chart */}
       {streams && (
-        <ActivityChart streams={streams} measurePref={measurePref} sportType={activity.sport_type} />
+        <ActivityChart streams={streams} measurePref={measurePref} sportType={activity.sport_type} laps={activity.laps ?? undefined} />
       )}
 
       {/* Laps */}
