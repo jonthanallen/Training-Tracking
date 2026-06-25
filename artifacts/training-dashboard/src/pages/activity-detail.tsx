@@ -410,7 +410,7 @@ export default function ActivityDetail() {
                     <td className="px-5 py-2.5 text-right">{formatDurationShort(l.moving_time)}</td>
                     <td className="px-5 py-2.5 text-right">{formatPace(l.average_speed ?? 0, activity.sport_type, measurePref)}</td>
                     {activity.laps!.some((ll) => ll.average_heartrate) && (
-                      <td className="px-5 py-2.5 text-right text-muted-foreground">
+                      <td className="px-5 py-2.5 text-right">
                         {l.average_heartrate ? Math.round(l.average_heartrate) : "—"}
                       </td>
                     )}
