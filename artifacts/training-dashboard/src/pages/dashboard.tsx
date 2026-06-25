@@ -12,7 +12,7 @@ import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
-import { ArrowRight, TrendingUp, Clock, Mountain, Flame } from "lucide-react";
+import { ArrowRight, TrendingUp, Clock, Mountain, Flame, Heart } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,10 +141,27 @@ export default function Dashboard() {
   const [monthlyMode, setMonthlyMode] = useState<"hours" | "km">("hours");
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
-  const { data: activities, isLoading: loadingActivities } = useListActivities(
-    { per_page: 6 },
-    { query: { queryKey: getListActivitiesQueryKey({ per_page: 6 }) } }
+  const { data: activitiesRaw, isLoading: loadingActivities } = useListActivities(
+    { per_page: 30 },
+    { query: { queryKey: getListActivitiesQueryKey({ per_page: 30 }) } }
   );
+
+  // Keep only activities from the current week and previous week (Monday-based)
+  const activities = useMemo(() => {
+    if (!activitiesRaw) return undefined;
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    const thisMonday = new Date(now);
+    thisMonday.setDate(now.getDate() - diffToMonday);
+    thisMonday.setHours(0, 0, 0, 0);
+    const prevMonday = new Date(thisMonday);
+    prevMonday.setDate(thisMonday.getDate() - 7);
+    return activitiesRaw.filter((a) => {
+      const d = new Date(a.start_date_local ?? a.start_date);
+      return d >= prevMonday;
+    });
+  }, [activitiesRaw]);
   const { data: weeklyStats, isLoading: loadingWeekly } = useGetWeeklyStats(
     { weeks: 12 },
     { query: { queryKey: getGetWeeklyStatsQueryKey({ weeks: 12 }) } }
@@ -384,38 +401,65 @@ export default function Dashboard() {
         </div>
         <div className="divide-y divide-border">
           {loadingActivities
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="px-5 py-3 flex items-center gap-4">
-                  <Skeleton className="w-8 h-8 rounded-md" />
-                  <div className="flex-1 space-y-1">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-32" />
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-5 py-4 flex items-center gap-4">
+                  <Skeleton className="w-10 h-10 rounded-md shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-56" />
+                    <Skeleton className="h-3 w-36" />
                   </div>
-                  <Skeleton className="h-4 w-16" />
+                  <div className="space-y-1 text-right">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-14" />
+                  </div>
                 </div>
               ))
-            : activities?.map((act) => (
-                <Link key={act.id} href={`/activities/${act.id}`}>
-                  <div className="px-5 py-3 flex items-center gap-4 hover:bg-muted/40 transition-colors cursor-pointer group">
-                    <div className={`p-2 rounded-md bg-muted ${sportTypeColor(act.sport_type)}`}>
-                      {(() => { const Icon = sportTypeIcon(act.sport_type); return <Icon className="w-4 h-4" />; })()}
+            : activities?.length === 0
+              ? (
+                  <div className="py-12 text-center text-muted-foreground text-sm">No activities this week or last week.</div>
+                )
+              : activities?.map((act) => (
+                  <Link key={act.id} href={`/activities/${act.id}`}>
+                    <div className="px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors cursor-pointer group">
+                      <div className={`p-2.5 rounded-md bg-muted shrink-0 ${sportTypeColor(act.sport_type)}`}>
+                        {(() => { const Icon = sportTypeIcon(act.sport_type); return <Icon className="w-5 h-5" />; })()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-primary group-hover:text-foreground transition-colors">{act.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
+                            weekday: "short", month: "short", day: "numeric",
+                          })}
+                          {" · "}
+                          <span className="capitalize">{act.sport_type}</span>
+                        </p>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground shrink-0">
+                        <div className="text-right">
+                          <p className="font-semibold text-foreground">{formatDistance(act.distance, measurePref)}</p>
+                          <p className="text-xs">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-foreground">{formatDuration(act.moving_time)}</p>
+                          <p className="text-xs flex items-center justify-end gap-0.5">
+                            <Mountain className="w-3 h-3" />
+                            {formatElevation(act.total_elevation_gain ?? 0, measurePref)}
+                          </p>
+                        </div>
+                        {act.average_heartrate && (
+                          <div className="text-right">
+                            <p className="text-foreground flex items-center justify-end gap-1">
+                              <Heart className="w-3 h-3 text-red-500" />
+                              {Math.round(act.average_heartrate)}
+                            </p>
+                            <p className="text-xs">avg bpm</p>
+                          </div>
+                        )}
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-primary group-hover:text-foreground transition-colors">{act.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
-                          weekday: "short", month: "short", day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0 space-y-0.5">
-                      <p className="text-sm font-medium">{formatDistance(act.distance, measurePref)}</p>
-                      <p className="text-xs text-muted-foreground">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
         </div>
       </div>
     </div>
