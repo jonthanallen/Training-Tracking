@@ -110,6 +110,7 @@ export default function Dashboard() {
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "6px",
                     fontSize: "12px",
+                    color: "hsl(var(--foreground))",
                   }}
                   formatter={(v: number) => [`${v.toFixed(1)} ${measurePref === "imperial" ? "mi" : "km"}`, "Distance"]}
                 />

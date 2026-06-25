@@ -3,6 +3,14 @@ import { stravaFetch } from "../lib/strava";
 
 const router = Router();
 
+// Normalize Strava virtual/alternate sport types into their base type
+function normalizeSportType(raw: string): string {
+  const t = raw || "Other";
+  if (t === "VirtualRide" || t === "EBikeRide" || t === "EMountainBikeRide") return "Ride";
+  if (t === "VirtualRun") return "Run";
+  return t;
+}
+
 router.get("/stats", async (req, res) => {
   try {
     const athlete = await stravaFetch("/athlete") as { id: number };
@@ -80,7 +88,7 @@ router.get("/stats/types", async (req, res) => {
     const typeMap = new Map<string, { count: number; distance: number; moving_time: number }>();
 
     for (const act of activities) {
-      const sportType = (act.sport_type as string) || (act.type as string) || "Other";
+      const sportType = normalizeSportType((act.sport_type as string) || (act.type as string) || "Other");
       const existing = typeMap.get(sportType);
       if (existing) {
         existing.count += 1;
