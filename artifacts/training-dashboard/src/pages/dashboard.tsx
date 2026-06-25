@@ -223,7 +223,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Distance", value: thisWeek ? formatDistance(thisWeek.distance, measurePref) : "—", prev: lastWeek ? formatDistance(lastWeek.distance, measurePref) : null, icon: TrendingUp },
-          { label: "Moving Time", value: thisWeek ? formatDuration(thisWeek.moving_time) : "—", prev: lastWeek ? formatDuration(lastWeek.moving_time) : null, icon: Clock },
+          { label: "Time", value: thisWeek ? formatDuration(thisWeek.moving_time) : "—", prev: lastWeek ? formatDuration(lastWeek.moving_time) : null, icon: Clock },
           { label: "Elevation", value: thisWeek ? formatElevation(thisWeek.elevation_gain, measurePref) : "—", prev: lastWeek ? formatElevation(lastWeek.elevation_gain, measurePref) : null, icon: Mountain },
           { label: "Activities", value: thisWeek ? String(thisWeek.count) : "—", prev: lastWeek ? String(lastWeek.count) : null, icon: Flame },
         ].map((stat) => (
