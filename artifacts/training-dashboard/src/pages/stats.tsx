@@ -256,9 +256,9 @@ export default function Stats() {
           <Toggle
             options={[
               { label: "All", value: "All" },
+              { label: "Swim", value: "Swim" },
               { label: "Bike", value: "Ride" },
               { label: "Run", value: "Run" },
-              { label: "Swim", value: "Swim" },
               { label: "Other", value: "Other" },
             ]}
             value={sportFilter}

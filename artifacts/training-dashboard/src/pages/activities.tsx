@@ -11,9 +11,9 @@ const PER_PAGE = 30;
 
 const SPORT_FILTERS = [
   { label: "All", value: "All" },
-  { label: "Run", value: "Run" },
-  { label: "Bike", value: "Ride" },
   { label: "Swim", value: "Swim" },
+  { label: "Bike", value: "Ride" },
+  { label: "Run", value: "Run" },
   { label: "Other", value: "Other" },
 ];
 
