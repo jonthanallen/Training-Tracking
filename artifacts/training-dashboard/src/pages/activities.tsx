@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor, displaySportType } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Heart, Mountain, ChevronDown } from "lucide-react";
+import { ArrowRight, Heart, Mountain, ChevronDown, Zap } from "lucide-react";
 
 const PER_PAGE = 30;
 
@@ -165,6 +165,15 @@ export default function Activities() {
                         </p>
                       )}
                     </div>
+                    {act.sport_type?.toLowerCase().includes("ride") && act.average_watts && (
+                      <div className="text-right">
+                        <p className="text-foreground flex items-center justify-end gap-1">
+                          <Zap className="w-3 h-3 text-yellow-500" />
+                          {Math.round(act.average_watts)}W
+                        </p>
+                        <p className="text-xs">avg power</p>
+                      </div>
+                    )}
                     {act.average_heartrate && (
                       <div className="text-right">
                         <p className="text-foreground flex items-center justify-end gap-1">
