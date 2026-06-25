@@ -136,7 +136,7 @@ export default function ActivityDetail() {
             {(() => { const Icon = sportTypeIcon(activity.sport_type); return <Icon className="w-5 h-5" />; })()}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{activity.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{activity.name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-sm text-muted-foreground">
                 {new Date(activity.start_date_local ?? activity.start_date).toLocaleDateString("en", {
@@ -165,7 +165,7 @@ export default function ActivityDetail() {
               <s.icon className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</span>
             </div>
-            <p className="text-lg font-bold">{s.value}</p>
+            <p className="text-lg font-bold text-foreground">{s.value}</p>
           </div>
         ))}
       </div>
@@ -202,7 +202,7 @@ export default function ActivityDetail() {
               </thead>
               <tbody className="divide-y divide-border">
                 {activity.splits_metric.map((s) => (
-                  <tr key={s.split} className="hover:bg-muted/40 transition-colors">
+                  <tr key={s.split} className="hover:bg-muted/40 transition-colors text-foreground">
                     <td className="px-5 py-2.5 text-muted-foreground">{s.split}</td>
                     <td className="px-5 py-2.5 text-right">{formatDistance(s.distance, measurePref)}</td>
                     <td className="px-5 py-2.5 text-right">{formatDurationShort(s.moving_time)}</td>
@@ -233,7 +233,7 @@ export default function ActivityDetail() {
             {activity.segment_efforts.slice(0, 10).map((seg) => (
               <div key={seg.id} className="px-5 py-3 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{seg.name}</p>
+                  <p className="text-sm font-medium truncate text-foreground">{seg.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatDistance(seg.distance ?? 0, measurePref)} · {formatDuration(seg.elapsed_time)}
                   </p>
