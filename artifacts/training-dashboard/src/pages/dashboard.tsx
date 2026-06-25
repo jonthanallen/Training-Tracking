@@ -1,13 +1,122 @@
-import { useGetAthlete, useListActivities, useGetWeeklyStats, useGetActivityTypes, getGetAthleteQueryKey, getListActivitiesQueryKey, getGetWeeklyStatsQueryKey, getGetActivityTypesQueryKey } from "@workspace/api-client-react";
+import { useState, useMemo } from "react";
+import {
+  useGetAthlete, useListActivities, useGetWeeklyStats, useGetDailyStats, useGetMonthlyStats,
+  getGetAthleteQueryKey, getListActivitiesQueryKey, getGetWeeklyStatsQueryKey, getGetDailyStatsQueryKey, getGetMonthlyStatsQueryKey,
+} from "@workspace/api-client-react";
+import type { DailyActivity } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
 import { ArrowRight, TrendingUp, Clock, Mountain, Flame } from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ChartMode = "hours" | "km";
+type SportFilter = "All" | "Ride" | "Run" | "Swim" | "Other";
+
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+
+function Toggle<T extends string>({
+  options, value, onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`px-2.5 py-1 text-xs rounded-sm font-medium transition-colors ${
+            value === opt.value
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Weekly volume area chart helpers ─────────────────────────────────────────
+
+function parseLocalDate(dateStr: string): Date {
+  return new Date(dateStr + "T00:00:00");
+}
+
+const SPORT_COLOR: Record<SportFilter, string> = {
+  All:   "hsl(15 90% 55%)",
+  Ride:  "hsl(145 70% 42%)",
+  Run:   "hsl(0 85% 52%)",
+  Swim:  "hsl(207 90% 48%)",
+  Other: "hsl(0 0% 55%)",
+};
+
+function buildWeeklyAreaData(
+  weeklyStats: Array<{ week_start: string; distance: number; moving_time: number; elevation_gain: number; count: number; sport_type?: string }>,
+  dailyStats: DailyActivity[],
+  sport: SportFilter,
+  mode: ChartMode,
+  measurePref: string,
+) {
+  // For "All", just use the weekly totals directly
+  // For a specific sport, filter daily data and aggregate per week
+  if (sport === "All") {
+    return weeklyStats.map((w) => ({
+      label: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      value: mode === "hours"
+        ? parseFloat((w.moving_time / 3600).toFixed(2))
+        : measurePref === "imperial"
+          ? parseFloat((w.distance * 0.000621371).toFixed(1))
+          : parseFloat((w.distance / 1000).toFixed(1)),
+    }));
+  }
+
+  // Group daily stats by week_start (Monday) for the chosen sport
+  const getMondayStr = (dateStr: string): string => {
+    const d = parseLocalDate(dateStr);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().split("T")[0];
+  };
+
+  const weekMap = new Map<string, number>();
+  for (const w of weeklyStats) weekMap.set(w.week_start, 0);
+
+  for (const entry of dailyStats) {
+    if (entry.sport_type !== sport) continue;
+    const weekKey = getMondayStr(entry.date);
+    if (!weekMap.has(weekKey)) continue;
+    const add = mode === "hours"
+      ? entry.moving_time / 3600
+      : measurePref === "imperial"
+        ? entry.distance * 0.000621371
+        : entry.distance / 1000;
+    weekMap.set(weekKey, (weekMap.get(weekKey) ?? 0) + add);
+  }
+
+  return weeklyStats.map((w) => ({
+    label: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+    value: parseFloat((weekMap.get(w.week_start) ?? 0).toFixed(2)),
+  }));
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
+  const [chartMode, setChartMode] = useState<ChartMode>("hours");
+  const [sportFilter, setSportFilter] = useState<SportFilter>("All");
+
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const { data: activities, isLoading: loadingActivities } = useListActivities(
     { per_page: 6 },
@@ -17,29 +126,45 @@ export default function Dashboard() {
     { weeks: 12 },
     { query: { queryKey: getGetWeeklyStatsQueryKey({ weeks: 12 }) } }
   );
-  const { data: activityTypes } = useGetActivityTypes({ query: { queryKey: getGetActivityTypesQueryKey() } });
+  const { data: dailyStats } = useGetDailyStats(
+    { days: 90 },
+    { query: { queryKey: getGetDailyStatsQueryKey({ days: 90 }) } }
+  );
+  const { data: monthlyStats, isLoading: loadingMonthly } = useGetMonthlyStats({
+    query: { queryKey: getGetMonthlyStatsQueryKey() },
+  });
 
   const measurePref = athlete?.measurement_preference ?? "metric";
+  const distUnit = measurePref === "imperial" ? "mi" : "km";
 
   const thisWeek = weeklyStats?.[weeklyStats.length - 1];
   const lastWeek = weeklyStats?.[weeklyStats.length - 2];
 
-  const distUnit = measurePref === "imperial" ? "mi" : "km";
+  const areaData = useMemo(() => {
+    if (!weeklyStats) return [];
+    return buildWeeklyAreaData(weeklyStats, dailyStats ?? [], sportFilter, chartMode, measurePref);
+  }, [weeklyStats, dailyStats, sportFilter, chartMode, measurePref]);
 
-  const weeklyChartData = weeklyStats?.map((w) => ({
-    week: new Date(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
-    distance: measurePref === "imperial" ? w.distance * 0.000621371 : w.distance / 1000,
-    count: w.count,
-  }));
+  const areaColor = SPORT_COLOR[sportFilter];
 
-  const WeeklyVolumeTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  const AreaTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
-    return (
-      <ChartTooltip
-        label={String(label)}
-        lines={[{ text: `${payload[0].value?.toFixed(1)} ${distUnit}`, color: "hsl(15 90% 55%)" }]}
-      />
-    );
+    const val = chartMode === "hours"
+      ? `${payload[0].value?.toFixed(2)} h`
+      : `${payload[0].value?.toFixed(1)} ${distUnit}`;
+    return <ChartTooltip label={String(label)} lines={[{ text: val, color: areaColor }]} />;
+  };
+
+  const MonthlyTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
+    if (!active || !payload?.length) return null;
+    const lines = payload
+      .filter((p) => p.value != null && (p.value as number) > 0)
+      .map((p) => ({
+        text: `${p.name}: ${(p.value as number).toFixed(2)} h`,
+        color: p.color ?? "hsl(var(--foreground))",
+      }));
+    if (!lines.length) return null;
+    return <ChartTooltip label={`Day ${label}`} lines={lines} />;
   };
 
   return (
@@ -55,30 +180,10 @@ export default function Dashboard() {
       {/* This Week Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          {
-            label: "Distance",
-            value: thisWeek ? formatDistance(thisWeek.distance, measurePref) : "—",
-            prev: lastWeek ? formatDistance(lastWeek.distance, measurePref) : null,
-            icon: TrendingUp,
-          },
-          {
-            label: "Moving Time",
-            value: thisWeek ? formatDuration(thisWeek.moving_time) : "—",
-            prev: lastWeek ? formatDuration(lastWeek.moving_time) : null,
-            icon: Clock,
-          },
-          {
-            label: "Elevation",
-            value: thisWeek ? formatElevation(thisWeek.elevation_gain, measurePref) : "—",
-            prev: lastWeek ? formatElevation(lastWeek.elevation_gain, measurePref) : null,
-            icon: Mountain,
-          },
-          {
-            label: "Activities",
-            value: thisWeek ? String(thisWeek.count) : "—",
-            prev: lastWeek ? String(lastWeek.count) : null,
-            icon: Flame,
-          },
+          { label: "Distance", value: thisWeek ? formatDistance(thisWeek.distance, measurePref) : "—", prev: lastWeek ? formatDistance(lastWeek.distance, measurePref) : null, icon: TrendingUp },
+          { label: "Moving Time", value: thisWeek ? formatDuration(thisWeek.moving_time) : "—", prev: lastWeek ? formatDuration(lastWeek.moving_time) : null, icon: Clock },
+          { label: "Elevation", value: thisWeek ? formatElevation(thisWeek.elevation_gain, measurePref) : "—", prev: lastWeek ? formatElevation(lastWeek.elevation_gain, measurePref) : null, icon: Mountain },
+          { label: "Activities", value: thisWeek ? String(thisWeek.count) : "—", prev: lastWeek ? String(lastWeek.count) : null, icon: Flame },
         ].map((stat) => (
           <div key={stat.label} className="bg-card border border-border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
@@ -99,65 +204,115 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Charts row */}
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Weekly Volume Chart */}
+
+        {/* Weekly Volume — Area Chart */}
         <div className="md:col-span-2 bg-card border border-border rounded-lg p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Weekly Volume</h2>
-            <span className="text-xs text-muted-foreground">Last 12 weeks</span>
+            <div className="flex items-center gap-2">
+              <Toggle
+                options={[
+                  { label: "Hours", value: "hours" },
+                  { label: distUnit.toUpperCase(), value: "km" },
+                ]}
+                value={chartMode}
+                onChange={(v) => setChartMode(v as ChartMode)}
+              />
+              <Toggle
+                options={[
+                  { label: "All", value: "All" },
+                  { label: "Ride", value: "Ride" },
+                  { label: "Run", value: "Run" },
+                  { label: "Swim", value: "Swim" },
+                  { label: "Other", value: "Other" },
+                ]}
+                value={sportFilter}
+                onChange={(v) => setSportFilter(v as SportFilter)}
+              />
+            </div>
           </div>
           {loadingWeekly ? (
             <Skeleton className="h-40 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={weeklyChartData} barSize={16}>
+              <AreaChart data={areaData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={areaColor} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={areaColor} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <XAxis
-                  dataKey="week"
+                  dataKey="label"
                   tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
+                  interval={2}
                 />
-                <YAxis hide />
-                <Tooltip content={<WeeklyVolumeTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-                <Bar dataKey="distance" radius={[3, 3, 0, 0]}>
-                  {weeklyChartData?.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={i === (weeklyChartData.length - 1) ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.4)"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
+                <YAxis
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip content={<AreaTooltipContent />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={areaColor}
+                  strokeWidth={2}
+                  fill="url(#areaGrad)"
+                  dot={false}
+                  activeDot={{ r: 3, fill: areaColor }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
 
-        {/* Sport Type Breakdown */}
+        {/* Month vs Last Month */}
         <div className="bg-card border border-border rounded-lg p-5">
-          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">By Sport</h2>
-          <div className="space-y-3">
-            {activityTypes?.slice(0, 5).map((t) => (
-              <div key={t.sport_type} className="flex items-center gap-3">
-                <div className={`${sportTypeColor(t.sport_type)}`}>
-                  {(() => { const Icon = sportTypeIcon(t.sport_type); return <Icon className="w-4 h-4" />; })()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate">{t.sport_type}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{t.count}</span>
-                  </div>
-                  <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{
-                        width: `${((t.count / (activityTypes?.[0]?.count ?? 1)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="mb-3">
+            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Monthly Hours</h2>
+            {monthlyStats && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {monthlyStats.last_month_name} vs {monthlyStats.this_month_name}
+              </p>
+            )}
           </div>
+          {loadingMonthly ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={monthlyStats?.days} barSize={3} barCategoryGap="10%">
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={4}
+                />
+                <YAxis hide />
+                <Tooltip content={<MonthlyTooltipContent />} cursor={{ fill: "hsl(var(--muted) / 0.3)" }} />
+                <Bar dataKey="last_month" name={monthlyStats?.last_month_name} fill="hsl(var(--primary) / 0.3)" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="this_month" name={monthlyStats?.this_month_name} fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {monthlyStats && (
+            <div className="flex items-center gap-4 mt-2 justify-end">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "hsl(var(--primary) / 0.3)" }} />
+                <span className="text-[10px] text-muted-foreground">{monthlyStats.last_month_name}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "hsl(var(--primary))" }} />
+                <span className="text-[10px] text-muted-foreground">{monthlyStats.this_month_name}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -191,9 +346,7 @@ export default function Dashboard() {
                       <p className="text-sm font-medium truncate text-primary group-hover:text-foreground transition-colors">{act.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
+                          weekday: "short", month: "short", day: "numeric",
                         })}
                       </p>
                     </div>

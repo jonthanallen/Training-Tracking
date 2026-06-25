@@ -169,6 +169,19 @@ paths:
                 items:
                   $ref: "#/components/schemas/SportTypeCount"
 
+  /stats/monthly:
+    get:
+      operationId: getMonthlyStats
+      tags: [stats]
+      summary: Get per-day hours for this month and last month, for comparison chart
+      responses:
+        "200":
+          description: Monthly comparison data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyComparison"
+
   /stats/daily:
     get:
       operationId: getDailyStats
@@ -530,6 +543,30 @@ components:
           type: number
         moving_time:
           type: integer
+
+    MonthlyComparison:
+      type: object
+      required: [this_month_name, last_month_name, days]
+      properties:
+        this_month_name:
+          type: string
+        last_month_name:
+          type: string
+        days:
+          type: array
+          items:
+            type: object
+            required: [day]
+            properties:
+              day:
+                type: integer
+                description: Day of month (1-31)
+              this_month:
+                type: ["number", "null"]
+                description: Hours trained on this day this month
+              last_month:
+                type: ["number", "null"]
+                description: Hours trained on this day last month
 
     DailyActivity:
       type: object

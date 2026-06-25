@@ -26,6 +26,7 @@ import type {
   GetWeeklyStatsParams,
   HealthStatus,
   ListActivitiesParams,
+  MonthlyComparison,
   SportTypeCount,
   WeeklyTotal
 } from './api.schemas';
@@ -675,6 +676,83 @@ export function useGetActivityTypes<TData = Awaited<ReturnType<typeof getActivit
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetActivityTypesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMonthlyStatsUrl = () => {
+
+
+
+
+  return `/api/stats/monthly`
+}
+
+/**
+ * @summary Get per-day hours for this month and last month, for comparison chart
+ */
+export const getMonthlyStats = async ( options?: RequestInit): Promise<MonthlyComparison> => {
+
+  return customFetch<MonthlyComparison>(getGetMonthlyStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMonthlyStatsQueryKey = () => {
+    return [
+    `/api/stats/monthly`
+    ] as const;
+    }
+
+
+export const getGetMonthlyStatsQueryOptions = <TData = Awaited<ReturnType<typeof getMonthlyStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMonthlyStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonthlyStats>>> = ({ signal }) => getMonthlyStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMonthlyStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMonthlyStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getMonthlyStats>>>
+export type GetMonthlyStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get per-day hours for this month and last month, for comparison chart
+ */
+
+export function useGetMonthlyStats<TData = Awaited<ReturnType<typeof getMonthlyStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMonthlyStatsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

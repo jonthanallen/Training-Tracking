@@ -118,6 +118,76 @@ router.get("/stats/types", async (req, res) => {
   }
 });
 
+router.get("/stats/monthly", async (req, res) => {
+  try {
+    const now = new Date();
+
+    // This month: year/month
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth(); // 0-indexed
+
+    // Last month
+    const lastMonthDate = new Date(thisYear, thisMonth - 1, 1);
+    const lastYear = lastMonthDate.getFullYear();
+    const lastMonth = lastMonthDate.getMonth();
+
+    const thisMonthName = now.toLocaleDateString("en", { month: "long" });
+    const lastMonthName = lastMonthDate.toLocaleDateString("en", { month: "long" });
+
+    // Fetch activities covering both months
+    const after = Math.floor(new Date(lastYear, lastMonth, 1).getTime() / 1000);
+    const [page1, page2] = await Promise.all([
+      stravaFetch("/athlete/activities", { per_page: 200, page: 1, after }) as Promise<Array<Record<string, unknown>>>,
+      stravaFetch("/athlete/activities", { per_page: 200, page: 2, after }) as Promise<Array<Record<string, unknown>>>,
+    ]);
+    const activities = [...(page1 ?? []), ...(page2 ?? [])];
+
+    // day -> seconds for each month
+    const thisDayMap = new Map<number, number>();
+    const lastDayMap = new Map<number, number>();
+
+    for (const act of activities) {
+      const dateStr = (act.start_date_local as string)?.split("T")[0];
+      if (!dateStr) continue;
+      const d = new Date(dateStr + "T00:00:00");
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const day = d.getDate();
+      const secs = (act.moving_time as number) || 0;
+
+      if (y === thisYear && m === thisMonth) {
+        thisDayMap.set(day, (thisDayMap.get(day) ?? 0) + secs);
+      } else if (y === lastYear && m === lastMonth) {
+        lastDayMap.set(day, (lastDayMap.get(day) ?? 0) + secs);
+      }
+    }
+
+    // Build days array up to the longer of: today's day-of-month OR last month's length
+    const today = now.getDate();
+    const lastMonthDays = new Date(thisYear, thisMonth, 0).getDate(); // days in last month
+    const maxDay = Math.max(today, lastMonthDays);
+
+    const days = [];
+    for (let d = 1; d <= maxDay; d++) {
+      const thisVal = thisDayMap.has(d) ? parseFloat((thisDayMap.get(d)! / 3600).toFixed(2)) : null;
+      // Only include last month days up to last month's actual length
+      const lastVal = d <= lastMonthDays && lastDayMap.has(d)
+        ? parseFloat((lastDayMap.get(d)! / 3600).toFixed(2))
+        : d <= lastMonthDays ? null : undefined;
+      days.push({
+        day: d,
+        this_month: d <= today ? (thisVal ?? null) : null,
+        last_month: d <= lastMonthDays ? (lastVal ?? null) : undefined,
+      });
+    }
+
+    res.json({ this_month_name: thisMonthName, last_month_name: lastMonthName, days });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch monthly stats");
+    res.status(500).json({ error: "Failed to fetch monthly stats" });
+  }
+});
+
 router.get("/stats/daily", async (req, res) => {
   try {
     const days = Math.min(Number(req.query.days ?? 364), 730);

@@ -19,6 +19,8 @@ export * from './getWeeklyStatsParams';
 export * from './healthStatus';
 export * from './lap';
 export * from './listActivitiesParams';
+export * from './monthlyComparison';
+export * from './monthlyComparisonDaysItem';
 export * from './segmentEffort';
 export * from './split';
 export * from './sportTypeCount';

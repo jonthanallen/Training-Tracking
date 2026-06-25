@@ -283,6 +283,20 @@ export const GetActivityTypesResponse = zod.array(GetActivityTypesResponseItem)
 
 
 /**
+ * @summary Get per-day hours for this month and last month, for comparison chart
+ */
+export const GetMonthlyStatsResponse = zod.object({
+  "this_month_name": zod.string(),
+  "last_month_name": zod.string(),
+  "days": zod.array(zod.object({
+  "day": zod.number().describe('Day of month (1-31)'),
+  "this_month": zod.number().nullish().describe('Hours trained on this day this month'),
+  "last_month": zod.number().nullish().describe('Hours trained on this day last month')
+}))
+})
+
+
+/**
  * @summary Get per-day activity totals for heatmap rendering
  */
 export const getDailyStatsQueryDaysDefault = 364;

@@ -204,6 +204,27 @@ export interface SportTypeCount {
   moving_time: number;
 }
 
+export type MonthlyComparisonDaysItem = {
+  /** Day of month (1-31) */
+  day: number;
+  /**
+     * Hours trained on this day this month
+     * @nullable
+     */
+  this_month?: number | null;
+  /**
+     * Hours trained on this day last month
+     * @nullable
+     */
+  last_month?: number | null;
+};
+
+export interface MonthlyComparison {
+  this_month_name: string;
+  last_month_name: string;
+  days: MonthlyComparisonDaysItem[];
+}
+
 export interface DailyActivity {
   /** ISO date YYYY-MM-DD in local time */
   date: string;
