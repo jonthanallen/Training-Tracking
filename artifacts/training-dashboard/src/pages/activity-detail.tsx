@@ -1,4 +1,5 @@
 import { useParams, Link } from "wouter";
+import { useEffect, useRef } from "react";
 import { useGetAthlete, useGetActivity, useGetActivityStreams, getGetAthleteQueryKey, getGetActivityQueryKey, getGetActivityStreamsQueryKey } from "@workspace/api-client-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
@@ -7,36 +8,73 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/chart-tooltip";
 import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Trophy, Wind } from "lucide-react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 function RouteMap({ latlng }: { latlng: number[][] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !latlng || latlng.length < 2) return;
+
+    const map = L.map(containerRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: false,
+      dragging: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      touchZoom: false,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      subdomains: "abcd",
+      maxZoom: 19,
+    }).addTo(map);
+
+    const latLngs = latlng.map((p) => [p[0], p[1]] as [number, number]);
+    const polyline = L.polyline(latLngs, {
+      color: "hsl(24, 90%, 50%)",
+      weight: 3,
+      opacity: 0.95,
+      lineJoin: "round",
+    }).addTo(map);
+
+    const startIcon = L.divIcon({
+      className: "",
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:hsl(24,90%,50%);border:2px solid white;"></div>`,
+      iconSize: [10, 10],
+      iconAnchor: [5, 5],
+    });
+    const endIcon = L.divIcon({
+      className: "",
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:white;border:2px solid hsl(24,90%,50%);"></div>`,
+      iconSize: [10, 10],
+      iconAnchor: [5, 5],
+    });
+
+    L.marker(latLngs[0], { icon: startIcon }).addTo(map);
+    L.marker(latLngs[latLngs.length - 1], { icon: endIcon }).addTo(map);
+
+    map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [latlng]);
+
   if (!latlng || latlng.length < 2) return null;
 
-  const lats = latlng.map((p) => p[0]);
-  const lngs = latlng.map((p) => p[1]);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-  const w = 400, h = 240;
-  const pad = 12;
-
-  const toX = (lng: number) => pad + ((lng - minLng) / (maxLng - minLng || 1)) * (w - pad * 2);
-  const toY = (lat: number) => h - pad - ((lat - minLat) / (maxLat - minLat || 1)) * (h - pad * 2);
-
-  const step = Math.max(1, Math.floor(latlng.length / 400));
-  const pts = latlng.filter((_, i) => i % step === 0);
-  const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${toX(p[1]).toFixed(1)},${toY(p[0]).toFixed(1)}`).join(" ");
-
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Route</h3>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full rounded" style={{ background: "hsl(var(--muted))" }}>
-        <path d={d} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {pts[0] && (
-          <circle cx={toX(pts[0][1])} cy={toY(pts[0][0])} r="5" fill="hsl(var(--primary))" />
-        )}
-        {pts[pts.length - 1] && (
-          <circle cx={toX(pts[pts.length - 1][1])} cy={toY(pts[pts.length - 1][0])} r="5" fill="white" stroke="hsl(var(--primary))" strokeWidth="2" />
-        )}
-      </svg>
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="px-4 pt-4 pb-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Route</h3>
+      </div>
+      <div ref={containerRef} style={{ height: 280 }} />
     </div>
   );
 }
