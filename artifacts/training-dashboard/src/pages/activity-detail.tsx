@@ -19,14 +19,14 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     if (!containerRef.current || !latlng || latlng.length < 2) return;
 
     const map = L.map(containerRef.current, {
-      zoomControl: false,
+      zoomControl: true,
       attributionControl: false,
-      scrollWheelZoom: false,
-      dragging: false,
-      doubleClickZoom: false,
-      boxZoom: false,
-      keyboard: false,
-      touchZoom: false,
+      scrollWheelZoom: true,
+      dragging: true,
+      doubleClickZoom: true,
+      boxZoom: true,
+      keyboard: true,
+      touchZoom: true,
     });
     mapRef.current = map;
 
@@ -59,7 +59,7 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     L.marker(latLngs[0], { icon: startIcon }).addTo(map);
     L.marker(latLngs[latLngs.length - 1], { icon: endIcon }).addTo(map);
 
-    map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
+    map.fitBounds(polyline.getBounds(), { padding: [8, 8] });
 
     return () => {
       map.remove();
