@@ -231,37 +231,6 @@ export default function ActivityDetail() {
         </div>
       )}
 
-      {/* Segment Efforts */}
-      {activity.segment_efforts && activity.segment_efforts.length > 0 && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-5 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Segment Efforts</h3>
-          </div>
-          <div className="divide-y divide-border">
-            {activity.segment_efforts.slice(0, 10).map((seg) => (
-              <div key={seg.id} className="px-5 py-3 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-foreground">{seg.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistance(seg.distance ?? 0, measurePref)} · {formatDuration(seg.elapsed_time)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {seg.pr_rank === 1 && (
-                    <Badge className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">PR</Badge>
-                  )}
-                  {seg.pr_rank != null && seg.pr_rank > 1 && (
-                    <Badge variant="secondary" className="text-xs">#{seg.pr_rank}</Badge>
-                  )}
-                  {seg.average_watts && (
-                    <span className="text-xs text-muted-foreground">{Math.round(seg.average_watts)}W</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
