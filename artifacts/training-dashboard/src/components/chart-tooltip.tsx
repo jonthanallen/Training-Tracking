@@ -11,8 +11,7 @@ export function ChartTooltip({
         background: "hsl(var(--card))",
         border: "1px solid hsl(var(--border))",
         borderRadius: 6,
-        padding: "7px 11px",
-        fontSize: 12,
+        padding: "8px 12px",
         pointerEvents: "none",
         whiteSpace: "nowrap",
       }}
@@ -20,8 +19,8 @@ export function ChartTooltip({
       <p
         style={{
           color: "hsl(var(--muted-foreground))",
-          marginBottom: lines.length ? 4 : 0,
           fontSize: 11,
+          marginBottom: lines.length ? 3 : 0,
         }}
       >
         {label}
@@ -31,9 +30,8 @@ export function ChartTooltip({
           key={i}
           style={{
             color: l.color,
-            fontFamily: "monospace",
+            fontSize: 14,
             fontWeight: 600,
-            fontSize: 13,
             marginTop: i > 0 ? 2 : 0,
           }}
         >
