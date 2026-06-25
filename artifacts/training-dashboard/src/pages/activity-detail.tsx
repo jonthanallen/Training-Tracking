@@ -180,40 +180,48 @@ export default function ActivityDetail() {
         )}
       </div>
 
-      {/* Splits */}
-      {activity.splits_metric && activity.splits_metric.length > 0 && (
+      {/* Laps */}
+      {activity.laps && activity.laps.length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="px-5 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Splits</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Laps</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="px-5 py-2 text-left">Km</th>
+                  <th className="px-5 py-2 text-left">Lap</th>
                   <th className="px-5 py-2 text-right">Distance</th>
                   <th className="px-5 py-2 text-right">Time</th>
                   <th className="px-5 py-2 text-right">Pace</th>
-                  {activity.splits_metric.some((s) => s.average_heartrate) && (
+                  {activity.laps.some((l) => l.average_heartrate) && (
                     <th className="px-5 py-2 text-right">HR</th>
+                  )}
+                  {activity.laps.some((l) => l.average_watts) && (
+                    <th className="px-5 py-2 text-right">Watts</th>
                   )}
                   <th className="px-5 py-2 text-right">Elev</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {activity.splits_metric.map((s) => (
-                  <tr key={s.split} className="hover:bg-muted/40 transition-colors text-foreground">
-                    <td className="px-5 py-2.5 text-muted-foreground">{s.split}</td>
-                    <td className="px-5 py-2.5 text-right">{formatDistance(s.distance, measurePref)}</td>
-                    <td className="px-5 py-2.5 text-right">{formatDurationShort(s.moving_time)}</td>
-                    <td className="px-5 py-2.5 text-right">{formatPace(s.average_speed ?? 0, activity.sport_type, measurePref)}</td>
-                    {activity.splits_metric!.some((sp) => sp.average_heartrate) && (
+                {activity.laps.map((l) => (
+                  <tr key={l.id} className="hover:bg-muted/40 transition-colors text-foreground">
+                    <td className="px-5 py-2.5 text-muted-foreground">{l.lap_index}</td>
+                    <td className="px-5 py-2.5 text-right">{formatDistance(l.distance, measurePref)}</td>
+                    <td className="px-5 py-2.5 text-right">{formatDurationShort(l.moving_time)}</td>
+                    <td className="px-5 py-2.5 text-right">{formatPace(l.average_speed ?? 0, activity.sport_type, measurePref)}</td>
+                    {activity.laps!.some((ll) => ll.average_heartrate) && (
                       <td className="px-5 py-2.5 text-right text-muted-foreground">
-                        {s.average_heartrate ? Math.round(s.average_heartrate) : "—"}
+                        {l.average_heartrate ? Math.round(l.average_heartrate) : "—"}
+                      </td>
+                    )}
+                    {activity.laps!.some((ll) => ll.average_watts) && (
+                      <td className="px-5 py-2.5 text-right text-muted-foreground">
+                        {l.average_watts ? `${Math.round(l.average_watts)}W` : "—"}
                       </td>
                     )}
                     <td className="px-5 py-2.5 text-right text-muted-foreground">
-                      {s.elevation_difference != null ? `${s.elevation_difference > 0 ? "+" : ""}${Math.round(s.elevation_difference)}m` : "—"}
+                      {l.total_elevation_gain != null ? `${Math.round(l.total_elevation_gain)}m` : "—"}
                     </td>
                   </tr>
                 ))}
