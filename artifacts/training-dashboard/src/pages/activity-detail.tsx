@@ -117,10 +117,8 @@ export default function ActivityDetail() {
     { label: activity.sport_type?.toLowerCase().includes("ride") ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
     { label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain },
     ...(activity.average_heartrate ? [{ label: "Avg HR", value: `${Math.round(activity.average_heartrate)} bpm`, icon: Heart }] : []),
-    ...(activity.max_heartrate ? [{ label: "Max HR", value: `${Math.round(activity.max_heartrate)} bpm`, icon: Heart }] : []),
-    ...(activity.average_watts ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
+    ...(activity.average_watts && !activity.sport_type?.toLowerCase().includes("run") ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
     ...(activity.kilojoules ? [{ label: "Energy", value: `${Math.round(activity.kilojoules)} kJ`, icon: Flame }] : []),
-    ...(activity.suffer_score ? [{ label: "Suffer Score", value: String(Math.round(activity.suffer_score)), icon: Trophy }] : []),
   ];
 
   return (
