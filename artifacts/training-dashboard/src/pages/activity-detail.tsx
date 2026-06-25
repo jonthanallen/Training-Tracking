@@ -181,7 +181,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const data = Array.from({ length: count }, (_, i) => {
     const distM = distRaw[i] ?? 0;
     return {
-      dist: isImperial ? (distM * 0.000621371).toFixed(2) : (distM / 1000).toFixed(2),
+      dist: isImperial ? distM * 0.000621371 : distM / 1000,
       elev:    elevNorm[i],    _elev:    elevRaw[i],
       hr:      hrNorm[i],      _hr:      hrRaw[i],
       speed:   speedNorm[i],   _speed:   speedRaw[i],
@@ -204,9 +204,9 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const distSuffix = isImperial ? "mi" : "km";
   const visibleSeries = SERIES.filter((s) => available[s.key]);
 
-  const maxDistVal = parseFloat(data[data.length - 1]?.dist ?? "0");
+  const maxDistVal = (data[data.length - 1]?.dist as number) ?? 0;
   const axisTicks = Array.from({ length: 20 }, (_, i) =>
-    (maxDistVal * i / 19).toFixed(2)
+    parseFloat((maxDistVal * i / 19).toFixed(2))
   );
 
   return (
@@ -248,7 +248,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
               <stop offset="95%" stopColor="hsl(220 10% 60%)" stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} ticks={axisTicks} />
+          <XAxis dataKey="dist" type="number" domain={[0, maxDistVal]} ticks={axisTicks} tickFormatter={(v: number) => v.toFixed(1)} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
           <YAxis domain={[0, 100]} hide />
           <Tooltip
             content={({ active, payload, label }: TooltipProps<number, string>) => {
@@ -256,7 +256,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
               const pt = payload[0]?.payload as Record<string, number>;
               return (
                 <ChartTooltip
-                  label={`${label} ${distSuffix}`}
+                  label={`${(label as number).toFixed(2)} ${distSuffix}`}
                   lines={SERIES.filter((s) => available[s.key] && show[s.key] && pt[`_${s.key}`] != null).map((s) => ({
                     text: `${s.label}: ${fmtTooltipVal(s.key, pt[`_${s.key}`])}`,
                     color: s.color,
