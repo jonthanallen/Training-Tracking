@@ -116,7 +116,7 @@ export default function ActivityDetail() {
     { label: "Moving Time", value: formatDuration(activity.moving_time), icon: Timer },
     { label: activity.sport_type?.toLowerCase().includes("ride") ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
     { label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain },
-    ...(activity.average_heartrate ? [{ label: "Avg HR", value: `${Math.round(activity.average_heartrate)} bpm`, icon: Heart }] : []),
+    { label: "Avg HR", value: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : "—", icon: Heart },
     ...(activity.average_watts && !activity.sport_type?.toLowerCase().includes("run") ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
     ...(activity.kilojoules ? [{ label: "Energy", value: `${Math.round(activity.kilojoules)} kJ`, icon: Flame }] : []),
   ];
