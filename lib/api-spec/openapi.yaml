@@ -1,22 +1,26 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Training Dashboard API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: athlete
+    description: Athlete profile
+  - name: activities
+    description: Training activities
+  - name: stats
+    description: Training statistics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +28,484 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /athlete:
+    get:
+      operationId: getAthlete
+      tags: [athlete]
+      summary: Get athlete profile
+      responses:
+        "200":
+          description: Athlete profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Athlete"
+
+  /activities:
+    get:
+      operationId: listActivities
+      tags: [activities]
+      summary: List activities
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 30
+        - name: type
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: before
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: after
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+
+  /activities/{id}:
+    get:
+      operationId: getActivity
+      tags: [activities]
+      summary: Get activity detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activity detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityDetail"
+        "404":
+          description: Not found
+
+  /activities/{id}/streams:
+    get:
+      operationId: getActivityStreams
+      tags: [activities]
+      summary: Get activity GPS/HR/power streams
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activity streams
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityStreams"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get overall training stats
+      responses:
+        "200":
+          description: Training stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AthleteStats"
+
+  /stats/weekly:
+    get:
+      operationId: getWeeklyStats
+      tags: [stats]
+      summary: Get weekly training totals for charting
+      parameters:
+        - name: weeks
+          in: query
+          schema:
+            type: integer
+            default: 12
+      responses:
+        "200":
+          description: Weekly stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeeklyTotal"
+
+  /stats/types:
+    get:
+      operationId: getActivityTypes
+      tags: [stats]
+      summary: Get breakdown of activities by sport type
+      responses:
+        "200":
+          description: Sport type breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SportTypeCount"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    Athlete:
+      type: object
+      required: [id, firstname, lastname, profile]
+      properties:
+        id:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        profile:
+          type: string
+        profile_medium:
+          type: string
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        follower_count:
+          type: ["integer", "null"]
+        friend_count:
+          type: ["integer", "null"]
+        measurement_preference:
+          type: string
+
+    Activity:
+      type: object
+      required: [id, name, type, sport_type, start_date, distance, moving_time, elapsed_time]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        sport_type:
+          type: string
+        start_date:
+          type: string
+        start_date_local:
+          type: string
+        distance:
+          type: number
+        moving_time:
+          type: integer
+        elapsed_time:
+          type: integer
+        total_elevation_gain:
+          type: number
+        average_speed:
+          type: number
+        max_speed:
+          type: number
+        average_heartrate:
+          type: ["number", "null"]
+        max_heartrate:
+          type: ["number", "null"]
+        average_watts:
+          type: ["number", "null"]
+        kilojoules:
+          type: ["number", "null"]
+        suffer_score:
+          type: ["number", "null"]
+        kudos_count:
+          type: ["integer", "null"]
+        achievement_count:
+          type: ["integer", "null"]
+        map:
+          $ref: "#/components/schemas/ActivityMap"
+
+    ActivityDetail:
+      type: object
+      required: [id, name, type, sport_type, start_date, distance, moving_time, elapsed_time]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        sport_type:
+          type: string
+        description:
+          type: ["string", "null"]
+        start_date:
+          type: string
+        start_date_local:
+          type: string
+        distance:
+          type: number
+        moving_time:
+          type: integer
+        elapsed_time:
+          type: integer
+        total_elevation_gain:
+          type: number
+        average_speed:
+          type: number
+        max_speed:
+          type: number
+        average_heartrate:
+          type: ["number", "null"]
+        max_heartrate:
+          type: ["number", "null"]
+        average_watts:
+          type: ["number", "null"]
+        max_watts:
+          type: ["number", "null"]
+        weighted_average_watts:
+          type: ["number", "null"]
+        kilojoules:
+          type: ["number", "null"]
+        suffer_score:
+          type: ["number", "null"]
+        kudos_count:
+          type: ["integer", "null"]
+        achievement_count:
+          type: ["integer", "null"]
+        calories:
+          type: ["number", "null"]
+        average_cadence:
+          type: ["number", "null"]
+        map:
+          $ref: "#/components/schemas/ActivityMap"
+        splits_metric:
+          type: array
+          items:
+            $ref: "#/components/schemas/Split"
+        laps:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lap"
+        segment_efforts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SegmentEffort"
+
+    ActivityMap:
+      type: object
+      properties:
+        id:
+          type: string
+        summary_polyline:
+          type: ["string", "null"]
+        polyline:
+          type: ["string", "null"]
+
+    Split:
+      type: object
+      required: [distance, elapsed_time, moving_time, split]
+      properties:
+        split:
+          type: integer
+        distance:
+          type: number
+        elapsed_time:
+          type: integer
+        moving_time:
+          type: integer
+        elevation_difference:
+          type: number
+        average_speed:
+          type: number
+        average_heartrate:
+          type: ["number", "null"]
+        average_grade_adjusted_speed:
+          type: ["number", "null"]
+
+    Lap:
+      type: object
+      required: [id, lap_index, distance, elapsed_time, moving_time]
+      properties:
+        id:
+          type: integer
+        lap_index:
+          type: integer
+        name:
+          type: string
+        distance:
+          type: number
+        elapsed_time:
+          type: integer
+        moving_time:
+          type: integer
+        total_elevation_gain:
+          type: number
+        average_speed:
+          type: number
+        max_speed:
+          type: number
+        average_heartrate:
+          type: ["number", "null"]
+        average_watts:
+          type: ["number", "null"]
+
+    SegmentEffort:
+      type: object
+      required: [id, name, elapsed_time, moving_time]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        elapsed_time:
+          type: integer
+        moving_time:
+          type: integer
+        distance:
+          type: number
+        average_heartrate:
+          type: ["number", "null"]
+        average_watts:
+          type: ["number", "null"]
+        pr_rank:
+          type: ["integer", "null"]
+        kom_rank:
+          type: ["integer", "null"]
+
+    ActivityStreams:
+      type: object
+      properties:
+        time:
+          type: array
+          items:
+            type: integer
+        distance:
+          type: array
+          items:
+            type: number
+        latlng:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        altitude:
+          type: array
+          items:
+            type: number
+        heartrate:
+          type: array
+          items:
+            type: integer
+        cadence:
+          type: array
+          items:
+            type: integer
+        watts:
+          type: array
+          items:
+            type: integer
+        velocity_smooth:
+          type: array
+          items:
+            type: number
+        grade_smooth:
+          type: array
+          items:
+            type: number
+
+    AthleteStats:
+      type: object
+      required: [recent_run_totals, all_run_totals, ytd_run_totals, recent_ride_totals, all_ride_totals, ytd_ride_totals]
+      properties:
+        recent_run_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        all_run_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        ytd_run_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        recent_ride_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        all_ride_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        ytd_ride_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        recent_swim_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        all_swim_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+        ytd_swim_totals:
+          $ref: "#/components/schemas/ActivityTotals"
+
+    ActivityTotals:
+      type: object
+      required: [count, distance, moving_time, elapsed_time, elevation_gain]
+      properties:
+        count:
+          type: integer
+        distance:
+          type: number
+        moving_time:
+          type: integer
+        elapsed_time:
+          type: integer
+        elevation_gain:
+          type: number
+        achievement_count:
+          type: ["integer", "null"]
+
+    WeeklyTotal:
+      type: object
+      required: [week_start, distance, moving_time, elevation_gain, count]
+      properties:
+        week_start:
+          type: string
+        distance:
+          type: number
+        moving_time:
+          type: integer
+        elevation_gain:
+          type: number
+        count:
+          type: integer
+        sport_type:
+          type: string
+
+    SportTypeCount:
+      type: object
+      required: [sport_type, count, distance, moving_time]
+      properties:
+        sport_type:
+          type: string
+        count:
+          type: integer
+        distance:
+          type: number
+        moving_time:
+          type: integer

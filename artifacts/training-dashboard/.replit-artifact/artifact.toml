@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Training Dashboard"
+version = "1.0.0"
+id = "artifacts/training-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22324
+
+[services.development]
+run = "pnpm --filter @workspace/training-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/training-dashboard", "run", "build" ]
+publicDir = "artifacts/training-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22324"
+BASE_PATH = "/"
