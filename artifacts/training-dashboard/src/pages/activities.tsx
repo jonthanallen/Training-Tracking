@@ -20,15 +20,28 @@ const SPORT_FILTERS = [
   { label: "Workout", value: "Workout" },
 ];
 
+function toUnix(dateStr: string | null | undefined): number | undefined {
+  if (!dateStr) return undefined;
+  return Math.floor(new Date(dateStr).getTime() / 1000);
+}
+
 export default function Activities() {
-  const [page, setPage] = useState(1);
   const [sportType, setSportType] = useState("All");
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
+
+  // "All" uses page numbers; filtered uses a `before` timestamp cursor
+  const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<number | undefined>(undefined);
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const measurePref = athlete?.measurement_preference ?? "metric";
 
-  const params = { per_page: PER_PAGE, page, ...(sportType !== "All" ? { type: sportType } : {}) };
+  const isFiltered = sportType !== "All";
+
+  const params = isFiltered
+    ? { per_page: PER_PAGE, type: sportType, ...(cursor ? { before: cursor } : {}) }
+    : { per_page: PER_PAGE, page };
+
   const { data: newActivities, isLoading, isFetching } = useListActivities(
     params,
     { query: { queryKey: getListActivitiesQueryKey(params) } }
@@ -36,20 +49,33 @@ export default function Activities() {
 
   useEffect(() => {
     if (!newActivities) return;
-    if (page === 1) {
+    const isFirstLoad = isFiltered ? cursor === undefined : page === 1;
+    if (isFirstLoad) {
       setAllActivities(newActivities);
     } else {
       setAllActivities((prev) => [...prev, ...newActivities]);
     }
-  }, [newActivities, page]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newActivities]);
 
   const handleSportChange = (val: string) => {
     setSportType(val);
     setPage(1);
+    setCursor(undefined);
     setAllActivities([]);
   };
 
   const hasMore = (newActivities?.length ?? 0) === PER_PAGE;
+
+  const handleLoadMore = () => {
+    if (isFiltered) {
+      const last = allActivities[allActivities.length - 1];
+      const ts = toUnix(last?.start_date_local ?? last?.start_date);
+      if (ts) setCursor(ts - 1);
+    } else {
+      setPage((p) => p + 1);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -80,7 +106,7 @@ export default function Activities() {
       </div>
 
       <div className="bg-card border border-border rounded-lg divide-y divide-border">
-        {isLoading && page === 1
+        {isLoading && allActivities.length === 0
           ? Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="px-5 py-4 flex items-center gap-4">
                 <Skeleton className="w-10 h-10 rounded-md shrink-0" />
@@ -154,7 +180,7 @@ export default function Activities() {
         <div className="flex justify-center">
           <Button
             variant="outline"
-            onClick={() => setPage((p) => p + 1)}
+            onClick={handleLoadMore}
             disabled={isFetching}
             className="gap-2 text-foreground cursor-pointer"
           >

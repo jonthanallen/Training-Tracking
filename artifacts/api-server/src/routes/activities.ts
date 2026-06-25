@@ -3,21 +3,50 @@ import { stravaFetch } from "../lib/strava";
 
 const router = Router();
 
+const STRAVA_MAX_PER_PAGE = 200;
+
 router.get("/activities", async (req, res) => {
   try {
     const { page = "1", per_page = "30", type, before, after } = req.query as Record<string, string>;
-    const activities = await stravaFetch("/athlete/activities", {
-      page: Number(page),
-      per_page: Number(per_page),
-      before: before ? Number(before) : undefined,
-      after: after ? Number(after) : undefined,
-    });
-    // Optionally filter by type client-side (Strava API doesn't support type filter in list)
-    let result = activities as Array<Record<string, unknown>>;
-    if (type) {
-      result = result.filter((a) => a.sport_type === type || a.type === type);
+    const target = Number(per_page);
+
+    if (!type) {
+      const activities = await stravaFetch("/athlete/activities", {
+        page: Number(page),
+        per_page: target,
+        before: before ? Number(before) : undefined,
+        after: after ? Number(after) : undefined,
+      });
+      res.json(activities);
+      return;
     }
-    res.json(result);
+
+    // Type filter active: loop Strava pages (cursor via `before`) until we fill the target count
+    const result: Array<Record<string, unknown>> = [];
+    let curBefore: number | undefined = before ? Number(before) : undefined;
+    const afterNum = after ? Number(after) : undefined;
+
+    while (result.length < target) {
+      const batch = await stravaFetch("/athlete/activities", {
+        per_page: STRAVA_MAX_PER_PAGE,
+        before: curBefore,
+        after: afterNum,
+      }) as Array<Record<string, unknown>>;
+
+      if (!batch || batch.length === 0) break;
+
+      const matching = batch.filter((a) => a.sport_type === type || a.type === type);
+      result.push(...matching);
+
+      if (batch.length < STRAVA_MAX_PER_PAGE) break; // exhausted all Strava history
+
+      // Advance cursor to just before the oldest activity in this batch
+      const lastDate = batch[batch.length - 1]?.start_date as string | undefined;
+      if (!lastDate) break;
+      curBefore = Math.floor(new Date(lastDate).getTime() / 1000) - 1;
+    }
+
+    res.json(result.slice(0, target));
   } catch (err) {
     req.log.error({ err }, "Failed to fetch activities");
     res.status(500).json({ error: "Failed to fetch activities" });
@@ -44,7 +73,6 @@ router.get("/activities/:id/streams", async (req, res) => {
       key_by_type: "true",
     }) as Record<string, { data: unknown[] }>;
 
-    // Flatten: { time: { data: [...] } } → { time: [...] }
     const streams: Record<string, unknown[]> = {};
     for (const [key, value] of Object.entries(raw)) {
       if (value && Array.isArray(value.data)) {
