@@ -171,7 +171,10 @@ export default function Activities() {
                           <Zap className="w-3 h-3 text-yellow-500" />
                           {Math.round(act.average_watts)}W
                         </p>
-                        <p className="text-xs">avg power</p>
+                        {act.weighted_average_watts
+                          ? <p className="text-xs">NP {Math.round(act.weighted_average_watts)}W</p>
+                          : <p className="text-xs">avg power</p>
+                        }
                       </div>
                     )}
                     {act.average_heartrate && (

@@ -64,6 +64,7 @@ export const ListActivitiesResponseItem = zod.object({
   "average_heartrate": zod.number().nullish(),
   "max_heartrate": zod.number().nullish(),
   "average_watts": zod.number().nullish(),
+  "weighted_average_watts": zod.number().nullish(),
   "kilojoules": zod.number().nullish(),
   "suffer_score": zod.number().nullish(),
   "kudos_count": zod.number().nullish(),

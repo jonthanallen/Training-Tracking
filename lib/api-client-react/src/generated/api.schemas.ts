@@ -56,6 +56,8 @@ export interface Activity {
   /** @nullable */
   average_watts?: number | null;
   /** @nullable */
+  weighted_average_watts?: number | null;
+  /** @nullable */
   kilojoules?: number | null;
   /** @nullable */
   suffer_score?: number | null;
