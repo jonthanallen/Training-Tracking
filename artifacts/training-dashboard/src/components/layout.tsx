@@ -25,7 +25,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
           <Activity className="w-5 h-5" />
         </div>
-        <span className="font-bold text-xl tracking-tight">KINETIC</span>
+        <span className="font-bold text-xl tracking-tight text-foreground">Training</span>
       </div>
 
       <nav className="flex-1 space-y-1">
@@ -53,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <AvatarFallback>{athlete.firstname?.charAt(0)}{athlete.lastname?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <span className="text-sm font-medium">{athlete.firstname} {athlete.lastname}</span>
+            <span className="text-sm font-medium text-foreground">{athlete.firstname} {athlete.lastname}</span>
             <span className="text-xs text-muted-foreground">{athlete.city || 'Athlete'}</span>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="bg-primary text-primary-foreground p-1 rounded-sm">
             <Activity className="w-4 h-4" />
           </div>
-          <span className="font-bold tracking-tight">KINETIC</span>
+          <span className="font-bold tracking-tight text-foreground">Training</span>
         </div>
         <Sheet>
           <SheetTrigger asChild>
