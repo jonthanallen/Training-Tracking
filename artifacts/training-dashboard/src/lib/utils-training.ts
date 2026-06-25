@@ -1,11 +1,34 @@
+import { createElement, type SVGProps } from "react";
 import { 
   Activity, 
   Bike, 
   Waves, 
-  Footprints, 
   Dumbbell,
   type LucideIcon,
 } from "lucide-react";
+
+const RunnerIcon = (props: SVGProps<SVGSVGElement> & { size?: number; strokeWidth?: number }) => {
+  const { size = 24, strokeWidth = 2, className, ...rest } = props;
+  return createElement("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: size, height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className,
+    ...rest,
+  },
+    createElement("circle", { cx: 13, cy: 4, r: 1.5 }),
+    createElement("path", { d: "M12 6.5 L10 11" }),
+    createElement("path", { d: "M11 8 L8 7" }),
+    createElement("path", { d: "M11.5 8.5 L14 7" }),
+    createElement("path", { d: "M10 11 L8 17" }),
+    createElement("path", { d: "M10 11 L13 15 L17 13" }),
+  );
+};
 
 export function formatDistance(meters: number, measurePref: string = 'metric'): string {
   if (!meters) return '0.0';
@@ -70,7 +93,7 @@ export function formatElevation(meters: number, measurePref: string = 'metric'):
 
 export function sportTypeIcon(sportType: string): LucideIcon {
   const t = sportType?.toLowerCase() || '';
-  if (t.includes('run')) return Footprints;
+  if (t.includes('run')) return RunnerIcon as unknown as LucideIcon;
   if (t.includes('ride') || t.includes('bike') || t.includes('cycl')) return Bike;
   if (t.includes('swim')) return Waves;
   if (t.includes('workout') || t.includes('weight') || t.includes('train')) return Dumbbell;
@@ -79,11 +102,11 @@ export function sportTypeIcon(sportType: string): LucideIcon {
 
 export function sportTypeColor(sportType: string): string {
   const t = sportType?.toLowerCase() || '';
-  if (t.includes('run')) return "text-orange-500";
-  if (t.includes('ride') || t.includes('bike')) return "text-blue-500";
-  if (t.includes('swim')) return "text-teal-500";
+  if (t.includes('run')) return "text-[hsl(4_75%_57%)]";
+  if (t.includes('ride') || t.includes('bike')) return "text-[hsl(145_70%_42%)]";
+  if (t.includes('swim')) return "text-[hsl(207_90%_48%)]";
   if (t.includes('workout')) return "text-purple-500";
-  return "text-green-500";
+  return "text-muted-foreground";
 }
 
 export function heartRateZone(bpm: number, maxHR: number = 190): number {
