@@ -1,8 +1,10 @@
 import { useGetAthlete, useListActivities, useGetWeeklyStats, useGetActivityTypes, getGetAthleteQueryKey, getListActivitiesQueryKey, getGetWeeklyStatsQueryKey, getGetActivityTypesQueryKey } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartTooltip } from "@/components/chart-tooltip";
 import { ArrowRight, TrendingUp, Clock, Mountain, Flame } from "lucide-react";
 
 export default function Dashboard() {
@@ -22,11 +24,23 @@ export default function Dashboard() {
   const thisWeek = weeklyStats?.[weeklyStats.length - 1];
   const lastWeek = weeklyStats?.[weeklyStats.length - 2];
 
+  const distUnit = measurePref === "imperial" ? "mi" : "km";
+
   const weeklyChartData = weeklyStats?.map((w) => ({
     week: new Date(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
     distance: measurePref === "imperial" ? w.distance * 0.000621371 : w.distance / 1000,
     count: w.count,
   }));
+
+  const WeeklyVolumeTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <ChartTooltip
+        label={String(label)}
+        lines={[{ text: `${payload[0].value?.toFixed(1)} ${distUnit}`, color: "hsl(15 90% 55%)" }]}
+      />
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -104,16 +118,7 @@ export default function Dashboard() {
                   tickLine={false}
                 />
                 <YAxis hide />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    color: "hsl(var(--foreground))",
-                  }}
-                  formatter={(v: number) => [`${v.toFixed(1)} ${measurePref === "imperial" ? "mi" : "km"}`, "Distance"]}
-                />
+                <Tooltip content={<WeeklyVolumeTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
                 <Bar dataKey="distance" radius={[3, 3, 0, 0]}>
                   {weeklyChartData?.map((entry, i) => (
                     <Cell

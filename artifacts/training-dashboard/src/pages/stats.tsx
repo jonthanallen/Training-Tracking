@@ -11,6 +11,7 @@ import type { DailyActivity } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartTooltip } from "@/components/chart-tooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,28 +116,6 @@ function getMonthLabels(weeks: CalendarCell[][]): { col: number; label: string }
   return labels;
 }
 
-// ─── Shared tooltip box ───────────────────────────────────────────────────────
-
-function TooltipBox({ label, lines }: { label: string; lines: { text: string; color: string }[] }) {
-  return (
-    <div style={{
-      background: "hsl(var(--card))",
-      border: "1px solid hsl(var(--border))",
-      borderRadius: 6,
-      padding: "7px 11px",
-      fontSize: 12,
-      pointerEvents: "none",
-      whiteSpace: "nowrap",
-    }}>
-      <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: lines.length ? 4 : 0, fontSize: 11 }}>{label}</p>
-      {lines.map((l, i) => (
-        <p key={i} style={{ color: l.color, fontFamily: "monospace", fontWeight: 600, fontSize: 13, marginTop: i > 0 ? 2 : 0 }}>
-          {l.text}
-        </p>
-      ))}
-    </div>
-  );
-}
 
 // ─── Toggle button ─────────────────────────────────────────────────────────────
 
@@ -215,7 +194,7 @@ export default function Stats() {
     if (!active || !payload?.length) return null;
     const row = payload[0].payload as { weekRange: string; hours: number; km: number };
     const val = chartMode === "hours" ? `${row.hours.toFixed(2)} h` : `${row.km} ${distUnit}`;
-    return <TooltipBox label={row.weekRange} lines={[{ text: val, color: "hsl(15 90% 55%)" }]} />;
+    return <ChartTooltip label={row.weekRange} lines={[{ text: val, color: "hsl(15 90% 55%)" }]} />;
   };
 
   // Day-of-week labels: Mon(0)…Sun(6), show Mon/Wed/Fri/Sun
@@ -301,7 +280,7 @@ export default function Stats() {
                   zIndex: 50,
                 }}
               >
-                <TooltipBox
+                <ChartTooltip
                   label={formatDayLabel(hoverCell.cell.date)}
                   lines={
                     hoverCell.cell.activities.length > 0

@@ -1,9 +1,11 @@
 import { useParams, Link } from "wouter";
 import { useGetAthlete, useGetActivity, useGetActivityStreams, getGetAthleteQueryKey, getGetActivityQueryKey, getGetActivityStreamsQueryKey } from "@workspace/api-client-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { ChartTooltip } from "@/components/chart-tooltip";
 import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Trophy, Wind } from "lucide-react";
 
 function RouteMap({ latlng }: { latlng: number[][] }) {
@@ -64,9 +66,18 @@ function ElevationChart({ altitude, distance, measurePref }: { altitude: number[
           <XAxis dataKey="dist" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={40} />
           <Tooltip
-            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", fontSize: "12px" }}
-            formatter={(v: number) => [`${v} ${measurePref === "imperial" ? "ft" : "m"}`, "Elevation"]}
-            labelFormatter={(l) => `${l} ${measurePref === "imperial" ? "mi" : "km"}`}
+            content={({ active, payload, label }: TooltipProps<number, string>) => {
+              if (!active || !payload?.length) return null;
+              const distSuffix = measurePref === "imperial" ? "mi" : "km";
+              const elevSuffix = measurePref === "imperial" ? "ft" : "m";
+              return (
+                <ChartTooltip
+                  label={`${label} ${distSuffix}`}
+                  lines={[{ text: `${payload[0].value} ${elevSuffix}`, color: "hsl(15 90% 55%)" }]}
+                />
+              );
+            }}
+            cursor={{ stroke: "hsl(var(--primary) / 0.4)", strokeWidth: 1 }}
           />
           <Area type="monotone" dataKey="elev" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#elevGrad)" />
         </AreaChart>
