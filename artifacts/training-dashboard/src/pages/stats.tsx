@@ -15,7 +15,7 @@ import {
   getListActivitiesQueryKey,
 } from "@workspace/api-client-react";
 import type { DailyActivity, Activity } from "@workspace/api-client-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
@@ -279,12 +279,24 @@ export default function Stats() {
               <Bar
                 dataKey={chartMode}
                 radius={[2, 2, 0, 0]}
-                fill="hsl(var(--primary))"
                 style={{ cursor: "pointer" }}
                 onClick={(data: { weekStart: string }) =>
                   setSelectedRange({ type: "week", weekStart: data.weekStart })
                 }
-              />
+              >
+                {weeklyChartData?.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={
+                      selectedRange.type === "week" && selectedRange.weekStart === entry.weekStart
+                        ? "hsl(var(--primary))"
+                        : selectedRange.type === "week"
+                          ? "hsl(var(--primary) / 0.3)"
+                          : "hsl(var(--primary))"
+                    }
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -359,8 +371,20 @@ export default function Stats() {
                 ))}
               </div>
 
-              {calendarGrid.map((week, colIdx) => (
-                <div key={colIdx} className="flex flex-col gap-[2px]" style={{ flex: 1, minWidth: 0 }}>
+              {calendarGrid.map((week, colIdx) => {
+                const isSelectedWeek = selectedRange.type === "week" && week[0].date === selectedRange.weekStart;
+                return (
+                <div
+                  key={colIdx}
+                  className="flex flex-col gap-[2px]"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    outline: isSelectedWeek ? "2px solid hsl(var(--primary))" : "none",
+                    outlineOffset: 2,
+                    borderRadius: 3,
+                  }}
+                >
                   {week.map((cell) => {
                     const isSelected = selectedRange.type === "day" && selectedRange.date === cell.date;
                     return (
@@ -391,7 +415,8 @@ export default function Stats() {
                     );
                   })}
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             <div className="flex items-center gap-2 mt-3 justify-end">
