@@ -183,7 +183,7 @@ export default function Dashboard() {
                       {(() => { const Icon = sportTypeIcon(act.sport_type); return <Icon className="w-4 h-4" />; })()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{act.name}</p>
+                      <p className="text-sm font-medium truncate text-primary group-hover:text-foreground transition-colors">{act.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
                           weekday: "short",

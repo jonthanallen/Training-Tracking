@@ -83,7 +83,7 @@ export default function Activities() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate group-hover:text-primary transition-colors">{act.name}</p>
+                    <p className="font-medium truncate text-primary group-hover:text-foreground transition-colors">{act.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
                         weekday: "short",
