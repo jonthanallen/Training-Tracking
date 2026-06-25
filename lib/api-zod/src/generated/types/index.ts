@@ -13,6 +13,8 @@ export * from './activityStreams';
 export * from './activityTotals';
 export * from './athlete';
 export * from './athleteStats';
+export * from './dailyActivity';
+export * from './getDailyStatsParams';
 export * from './getWeeklyStatsParams';
 export * from './healthStatus';
 export * from './lap';

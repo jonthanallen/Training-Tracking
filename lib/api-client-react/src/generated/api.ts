@@ -21,6 +21,8 @@ import type {
   ActivityStreams,
   Athlete,
   AthleteStats,
+  DailyActivity,
+  GetDailyStatsParams,
   GetWeeklyStatsParams,
   HealthStatus,
   ListActivitiesParams,
@@ -673,6 +675,90 @@ export function useGetActivityTypes<TData = Awaited<ReturnType<typeof getActivit
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetActivityTypesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDailyStatsUrl = (params?: GetDailyStatsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/stats/daily?${stringifiedParams}` : `/api/stats/daily`
+}
+
+/**
+ * @summary Get per-day activity totals for heatmap rendering
+ */
+export const getDailyStats = async (params?: GetDailyStatsParams, options?: RequestInit): Promise<DailyActivity[]> => {
+
+  return customFetch<DailyActivity[]>(getGetDailyStatsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDailyStatsQueryKey = (params?: GetDailyStatsParams,) => {
+    return [
+    `/api/stats/daily`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDailyStatsQueryOptions = <TData = Awaited<ReturnType<typeof getDailyStats>>, TError = ErrorType<unknown>>(params?: GetDailyStatsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDailyStatsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyStats>>> = ({ signal }) => getDailyStats(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDailyStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDailyStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getDailyStats>>>
+export type GetDailyStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get per-day activity totals for heatmap rendering
+ */
+
+export function useGetDailyStats<TData = Awaited<ReturnType<typeof getDailyStats>>, TError = ErrorType<unknown>>(
+ params?: GetDailyStatsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDailyStatsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

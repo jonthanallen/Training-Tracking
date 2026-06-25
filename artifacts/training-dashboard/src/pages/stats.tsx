@@ -1,202 +1,341 @@
-import { useGetAthlete, useGetStats, useGetWeeklyStats, useGetActivityTypes, getGetAthleteQueryKey, getGetStatsQueryKey, getGetWeeklyStatsQueryKey, getGetActivityTypesQueryKey } from "@workspace/api-client-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
-import { formatDistance, formatDuration, formatElevation } from "@/lib/utils-training";
+import { useState, useMemo } from "react";
+import {
+  useGetAthlete,
+  useGetWeeklyStats,
+  useGetDailyStats,
+  getGetAthleteQueryKey,
+  getGetWeeklyStatsQueryKey,
+  getGetDailyStatsQueryKey,
+} from "@workspace/api-client-react";
+import type { DailyActivity } from "@workspace/api-client-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-const SPORT_COLORS: Record<string, string> = {
-  Run: "hsl(15 90% 55%)",
-  Ride: "hsl(210 100% 50%)",
-  Swim: "hsl(160 80% 40%)",
-  Walk: "hsl(45 100% 50%)",
-  WeightTraining: "hsl(280 80% 50%)",
-  Workout: "hsl(280 80% 50%)",
-  Hike: "hsl(120 60% 40%)",
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ChartMode = "hours" | "km";
+type SportFilter = "All" | "Ride" | "Run" | "Swim" | "Other";
+
+// ─── Heatmap helpers ──────────────────────────────────────────────────────────
+
+const SPORT_COLORS: Record<SportFilter, { base: string; levels: string[] }> = {
+  All:   { base: "hsl(15 90% 55%)",   levels: ["hsl(15 90% 18%)", "hsl(15 90% 32%)", "hsl(15 90% 44%)", "hsl(15 90% 55%)"] },
+  Ride:  { base: "hsl(145 70% 42%)",  levels: ["hsl(145 70% 13%)", "hsl(145 70% 24%)", "hsl(145 70% 34%)", "hsl(145 70% 42%)"] },
+  Run:   { base: "hsl(0 85% 52%)",    levels: ["hsl(0 85% 16%)", "hsl(0 85% 28%)", "hsl(0 85% 40%)", "hsl(0 85% 52%)"] },
+  Swim:  { base: "hsl(207 90% 48%)",  levels: ["hsl(207 90% 15%)", "hsl(207 90% 26%)", "hsl(207 90% 36%)", "hsl(207 90% 48%)"] },
+  Other: { base: "hsl(0 0% 55%)",     levels: ["hsl(0 0% 18%)", "hsl(0 0% 30%)", "hsl(0 0% 42%)", "hsl(0 0% 55%)"] },
 };
 
-function getSportColor(sport: string, idx: number): string {
-  return SPORT_COLORS[sport] ?? `hsl(${(idx * 50 + 200) % 360} 70% 50%)`;
+function intensityLevel(minutes: number): number {
+  if (minutes === 0) return -1;
+  if (minutes < 30) return 0;
+  if (minutes < 60) return 1;
+  if (minutes < 120) return 2;
+  return 3;
 }
 
-export default function Stats() {
-  const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
-  const { data: stats, isLoading: loadingStats } = useGetStats({ query: { queryKey: getGetStatsQueryKey() } });
-  const { data: weeklyStats, isLoading: loadingWeekly } = useGetWeeklyStats(
-    { weeks: 24 },
-    { query: { queryKey: getGetWeeklyStatsQueryKey({ weeks: 24 }) } }
-  );
-  const { data: activityTypes } = useGetActivityTypes({ query: { queryKey: getGetActivityTypesQueryKey() } });
+// Build a grid covering exactly 52 full weeks ending today (Sunday-anchored columns)
+function buildCalendarGrid(
+  dailyData: DailyActivity[],
+  sport: SportFilter
+): { date: string; minutes: number; level: number }[][] {
+  // Aggregate: sum moving_time for the selected sport filter
+  const dayMap = new Map<string, number>();
+  for (const entry of dailyData) {
+    const matches =
+      sport === "All" ||
+      entry.sport_type === sport;
+    if (!matches) continue;
+    const prev = dayMap.get(entry.date) ?? 0;
+    dayMap.set(entry.date, prev + Math.round(entry.moving_time / 60));
+  }
 
+  // Find the most-recent Sunday (end of last complete week column)
+  const today = new Date();
+  // How many days since last Saturday (so last column ends on Saturday)
+  const endOfGrid = new Date(today);
+  // Align to Saturday (day 6); walk forward if needed
+  const dayOfWeek = endOfGrid.getDay(); // 0=Sun..6=Sat
+  const daysToSat = (6 - dayOfWeek + 7) % 7;
+  endOfGrid.setDate(endOfGrid.getDate() + daysToSat);
+
+  // 52 weeks × 7 days, columns left = oldest
+  const WEEKS = 52;
+  const weeks: { date: string; minutes: number; level: number }[][] = [];
+
+  for (let w = WEEKS - 1; w >= 0; w--) {
+    const col: { date: string; minutes: number; level: number }[] = [];
+    for (let d = 6; d >= 0; d--) {
+      const daysBack = w * 7 + d;
+      const cell = new Date(endOfGrid);
+      cell.setDate(endOfGrid.getDate() - daysBack);
+      const dateStr = cell.toISOString().split("T")[0];
+      const minutes = dayMap.get(dateStr) ?? 0;
+      const isFuture = cell > today;
+      col.unshift({ date: dateStr, minutes: isFuture ? 0 : minutes, level: isFuture ? -2 : intensityLevel(minutes) });
+    }
+    weeks.push(col);
+  }
+
+  return weeks;
+}
+
+// Month labels for the heatmap x-axis
+function getMonthLabels(weeks: { date: string }[][]): { col: number; label: string }[] {
+  const labels: { col: number; label: string }[] = [];
+  let lastMonth = -1;
+  for (let i = 0; i < weeks.length; i++) {
+    const firstDay = new Date(weeks[i][0].date);
+    const month = firstDay.getMonth();
+    if (month !== lastMonth) {
+      labels.push({ col: i, label: firstDay.toLocaleDateString("en", { month: "short" }) });
+      lastMonth = month;
+    }
+  }
+  return labels;
+}
+
+// ─── Toggle button ─────────────────────────────────────────────────────────────
+
+function Toggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`px-3 py-1 text-xs rounded-sm font-medium transition-colors ${
+            value === opt.value
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
+
+export default function Stats() {
+  const [chartMode, setChartMode] = useState<ChartMode>("hours");
+  const [sportFilter, setSportFilter] = useState<SportFilter>("All");
+
+  const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const measurePref = athlete?.measurement_preference ?? "metric";
 
-  const weeklyChartData = weeklyStats?.map((w) => ({
-    week: new Date(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
-    distance: measurePref === "imperial" ? parseFloat((w.distance * 0.000621371).toFixed(1)) : parseFloat((w.distance / 1000).toFixed(1)),
-    time: Math.round(w.moving_time / 60),
-    elevation: measurePref === "imperial" ? Math.round(w.elevation_gain * 3.28084) : Math.round(w.elevation_gain),
-    count: w.count,
-  }));
+  const { data: weeklyStats, isLoading: loadingWeekly } = useGetWeeklyStats(
+    { weeks: 52 },
+    { query: { queryKey: getGetWeeklyStatsQueryKey({ weeks: 52 }) } }
+  );
 
-  const pieData = activityTypes?.slice(0, 6).map((t) => ({
-    name: t.sport_type,
-    value: t.count,
-  }));
+  const { data: dailyStats, isLoading: loadingDaily } = useGetDailyStats(
+    { days: 364 },
+    { query: { queryKey: getGetDailyStatsQueryKey({ days: 364 }) } }
+  );
 
-  const sportRows = [
-    { key: "run", label: "Running", ytd: stats?.ytd_run_totals, allTime: stats?.all_run_totals, recent: stats?.recent_run_totals },
-    { key: "ride", label: "Cycling", ytd: stats?.ytd_ride_totals, allTime: stats?.all_ride_totals, recent: stats?.recent_ride_totals },
-    { key: "swim", label: "Swimming", ytd: stats?.ytd_swim_totals, allTime: stats?.all_swim_totals, recent: stats?.recent_swim_totals },
-  ];
+  // Weekly bar chart data
+  const weeklyChartData = useMemo(() =>
+    weeklyStats?.map((w) => ({
+      week: new Date(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      hours: parseFloat((w.moving_time / 3600).toFixed(2)),
+      km: measurePref === "imperial"
+        ? parseFloat((w.distance * 0.000621371).toFixed(1))
+        : parseFloat((w.distance / 1000).toFixed(1)),
+    })),
+    [weeklyStats, measurePref]
+  );
+
+  const latestIdx = (weeklyChartData?.length ?? 0) - 1;
+
+  // Calendar heatmap grid
+  const calendarGrid = useMemo(() =>
+    dailyStats ? buildCalendarGrid(dailyStats, sportFilter) : [],
+    [dailyStats, sportFilter]
+  );
+
+  const monthLabels = useMemo(() => getMonthLabels(calendarGrid), [calendarGrid]);
+  const colorSet = SPORT_COLORS[sportFilter];
+  const distUnit = measurePref === "imperial" ? "mi" : "km";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Training totals and trends</p>
+        <h1 className="text-2xl font-bold tracking-tight">Trends</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Rolling 52 weeks of training data</p>
       </div>
 
-      {/* Totals by sport */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
-        <div className="px-5 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Totals by Sport</h2>
-        </div>
-        <Tabs defaultValue="ytd">
-          <div className="px-5 pt-3">
-            <TabsList>
-              <TabsTrigger value="ytd">Year to Date</TabsTrigger>
-              <TabsTrigger value="recent">Last 4 Weeks</TabsTrigger>
-              <TabsTrigger value="alltime">All Time</TabsTrigger>
-            </TabsList>
-          </div>
-          {["ytd", "recent", "alltime"].map((tab) => (
-            <TabsContent key={tab} value={tab}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs text-muted-foreground">
-                      <th className="px-5 py-2 text-left">Sport</th>
-                      <th className="px-5 py-2 text-right">Activities</th>
-                      <th className="px-5 py-2 text-right">Distance</th>
-                      <th className="px-5 py-2 text-right">Time</th>
-                      <th className="px-5 py-2 text-right">Elevation</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {loadingStats
-                      ? Array.from({ length: 3 }).map((_, i) => (
-                          <tr key={i}>
-                            {Array.from({ length: 5 }).map((_, j) => (
-                              <td key={j} className="px-5 py-3">
-                                <Skeleton className="h-4 w-16" />
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      : sportRows.map((row) => {
-                          const totals = tab === "ytd" ? row.ytd : tab === "recent" ? row.recent : row.allTime;
-                          if (!totals || totals.count === 0) return null;
-                          return (
-                            <tr key={row.key} className="hover:bg-muted/40 transition-colors">
-                              <td className="px-5 py-3 font-medium">{row.label}</td>
-                              <td className="px-5 py-3 text-right font-mono">{totals.count}</td>
-                              <td className="px-5 py-3 text-right font-mono">{formatDistance(totals.distance, measurePref)}</td>
-                              <td className="px-5 py-3 text-right font-mono">{formatDuration(totals.moving_time)}</td>
-                              <td className="px-5 py-3 text-right font-mono">{formatElevation(totals.elevation_gain, measurePref)}</td>
-                            </tr>
-                          );
-                        })}
-                  </tbody>
-                </table>
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-
-      {/* Weekly charts */}
-      <div className="grid md:grid-cols-2 gap-5">
-        <div className="bg-card border border-border rounded-lg p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-            Weekly Distance ({measurePref === "imperial" ? "mi" : "km"})
-          </h2>
-          {loadingWeekly ? (
-            <Skeleton className="h-44 w-full" />
-          ) : (
-            <ResponsiveContainer width="100%" height={176}>
-              <BarChart data={weeklyChartData} barSize={14}>
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} interval={3} />
-                <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", fontSize: "12px", color: "hsl(var(--foreground))" }}
-                  formatter={(v: number) => [`${v} ${measurePref === "imperial" ? "mi" : "km"}`, "Distance"]}
-                />
-                <Bar dataKey="distance" fill="hsl(var(--primary) / 0.6)" radius={[3, 3, 0, 0]}>
-                  {weeklyChartData?.map((_, i) => (
-                    <Cell key={i} fill={i === (weeklyChartData.length - 1) ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="bg-card border border-border rounded-lg p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Sport Breakdown</h2>
-          {!activityTypes ? (
-            <Skeleton className="h-44 w-full" />
-          ) : (
-            <ResponsiveContainer width="100%" height={176}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="40%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  strokeWidth={0}
-                >
-                  {pieData?.map((entry, i) => (
-                    <Cell key={i} fill={getSportColor(entry.name, i)} />
-                  ))}
-                </Pie>
-                <Legend
-                  layout="vertical"
-                  align="right"
-                  verticalAlign="middle"
-                  formatter={(v) => <span style={{ fontSize: 12, color: "hsl(var(--foreground))" }}>{v}</span>}
-                />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", fontSize: "12px", color: "hsl(var(--foreground))" }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </div>
-
-      {/* Weekly time */}
+      {/* ── Weekly Volume Chart ── */}
       <div className="bg-card border border-border rounded-lg p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Weekly Time (min)</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            Weekly {chartMode === "hours" ? "Training Hours" : `Distance (${distUnit})`}
+          </h2>
+          <Toggle
+            options={[
+              { label: "Hours", value: "hours" },
+              { label: distUnit.toUpperCase(), value: "km" },
+            ]}
+            value={chartMode}
+            onChange={(v) => setChartMode(v as ChartMode)}
+          />
+        </div>
+
         {loadingWeekly ? (
           <Skeleton className="h-40 w-full" />
         ) : (
           <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={weeklyChartData} barSize={14}>
-              <XAxis dataKey="week" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} interval={3} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} />
-              <Tooltip
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", fontSize: "12px", color: "hsl(var(--foreground))" }}
-                formatter={(v: number) => [`${v} min`, "Time"]}
+            <BarChart data={weeklyChartData} barSize={10} barCategoryGap="15%">
+              <XAxis
+                dataKey="week"
+                tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                interval={7}
               />
-              <Bar dataKey="time" fill="hsl(210 100% 50% / 0.5)" radius={[3, 3, 0, 0]}>
+              <YAxis
+                tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  color: "hsl(var(--foreground))",
+                }}
+                formatter={(v: number) =>
+                  chartMode === "hours"
+                    ? [`${v.toFixed(2)} h`, "Hours"]
+                    : [`${v} ${distUnit}`, "Distance"]
+                }
+              />
+              <Bar dataKey={chartMode} radius={[2, 2, 0, 0]}>
                 {weeklyChartData?.map((_, i) => (
-                  <Cell key={i} fill={i === (weeklyChartData.length - 1) ? "hsl(210 100% 50%)" : "hsl(210 100% 50% / 0.5)"} />
+                  <Cell
+                    key={i}
+                    fill={i === latestIdx ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.45)"}
+                  />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* ── Calendar Heatmap ── */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Activity Heatmap</h2>
+          <Toggle
+            options={[
+              { label: "All", value: "All" },
+              { label: "Ride", value: "Ride" },
+              { label: "Run", value: "Run" },
+              { label: "Swim", value: "Swim" },
+              { label: "Other", value: "Other" },
+            ]}
+            value={sportFilter}
+            onChange={(v) => setSportFilter(v as SportFilter)}
+          />
+        </div>
+
+        {loadingDaily ? (
+          <Skeleton className="h-28 w-full" />
+        ) : (
+          <div className="overflow-x-auto">
+            {/* Month labels row */}
+            <div className="flex mb-1" style={{ paddingLeft: 28 }}>
+              {calendarGrid.map((_, colIdx) => {
+                const label = monthLabels.find((m) => m.col === colIdx);
+                return (
+                  <div key={colIdx} style={{ width: 13, flexShrink: 0 }}>
+                    {label ? (
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">{label.label}</span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Grid: rows = days of week, cols = weeks */}
+            <div className="flex gap-0.5">
+              {/* Day labels */}
+              <div className="flex flex-col gap-0.5 mr-1 shrink-0">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+                  <div
+                    key={d}
+                    className="text-[9px] text-muted-foreground flex items-center"
+                    style={{ height: 11, opacity: i % 2 === 0 ? 1 : 0 }}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Weeks */}
+              {calendarGrid.map((week, colIdx) => (
+                <div key={colIdx} className="flex flex-col gap-0.5">
+                  {week.map((cell) => {
+                    const bg =
+                      cell.level === -2
+                        ? "transparent"
+                        : cell.level === -1
+                        ? "hsl(var(--muted))"
+                        : colorSet.levels[cell.level];
+                    return (
+                      <div
+                        key={cell.date}
+                        title={
+                          cell.level >= 0
+                            ? `${cell.date}: ${cell.minutes > 0 ? `${cell.minutes} min` : "rest"}`
+                            : cell.date
+                        }
+                        style={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: 2,
+                          backgroundColor: bg,
+                          flexShrink: 0,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-2 mt-3 justify-end">
+              <span className="text-[10px] text-muted-foreground">Less</span>
+              {[-1, 0, 1, 2, 3].map((lvl) => (
+                <div
+                  key={lvl}
+                  style={{
+                    width: 11,
+                    height: 11,
+                    borderRadius: 2,
+                    backgroundColor: lvl === -1 ? "hsl(var(--muted))" : colorSet.levels[lvl],
+                  }}
+                />
+              ))}
+              <span className="text-[10px] text-muted-foreground">More</span>
+            </div>
+          </div>
         )}
       </div>
     </div>

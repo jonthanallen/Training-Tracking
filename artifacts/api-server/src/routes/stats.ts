@@ -114,4 +114,61 @@ router.get("/stats/types", async (req, res) => {
   }
 });
 
+router.get("/stats/daily", async (req, res) => {
+  try {
+    const days = Math.min(Number(req.query.days ?? 364), 730);
+    // Fetch enough activities; Strava max per_page is 200, use two pages for dense training
+    const [page1, page2] = await Promise.all([
+      stravaFetch("/athlete/activities", { per_page: 200, page: 1 }) as Promise<Array<Record<string, unknown>>>,
+      stravaFetch("/athlete/activities", { per_page: 200, page: 2 }) as Promise<Array<Record<string, unknown>>>,
+    ]);
+    const activities = [...(page1 ?? []), ...(page2 ?? [])];
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    // Map: "YYYY-MM-DD|sport_type" -> { moving_time, distance, count }
+    const dayMap = new Map<string, { moving_time: number; distance: number; count: number }>();
+
+    const normalizeForHeatmap = (raw: string): string => {
+      const t = raw || "Other";
+      if (t === "VirtualRide" || t === "EBikeRide" || t === "EMountainBikeRide") return "Ride";
+      if (t === "VirtualRun") return "Run";
+      if (["Run", "Ride", "Swim"].includes(t)) return t;
+      return "Other";
+    };
+
+    for (const act of activities) {
+      const dateStr = (act.start_date_local as string)?.split("T")[0];
+      if (!dateStr) continue;
+      if (new Date(dateStr) < cutoff) continue;
+
+      const sport = normalizeForHeatmap((act.sport_type as string) || "Other");
+      const key = `${dateStr}|${sport}`;
+      const existing = dayMap.get(key);
+      if (existing) {
+        existing.moving_time += (act.moving_time as number) || 0;
+        existing.distance += (act.distance as number) || 0;
+        existing.count += 1;
+      } else {
+        dayMap.set(key, {
+          moving_time: (act.moving_time as number) || 0,
+          distance: (act.distance as number) || 0,
+          count: 1,
+        });
+      }
+    }
+
+    const result = Array.from(dayMap.entries()).map(([key, data]) => {
+      const [date, sport_type] = key.split("|");
+      return { date, sport_type, ...data };
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch daily stats");
+    res.status(500).json({ error: "Failed to fetch daily stats" });
+  }
+});
+
 export default router;

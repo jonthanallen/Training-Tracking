@@ -204,6 +204,16 @@ export interface SportTypeCount {
   moving_time: number;
 }
 
+export interface DailyActivity {
+  /** ISO date YYYY-MM-DD in local time */
+  date: string;
+  /** Normalized sport type (Ride, Run, Swim, Other) */
+  sport_type: string;
+  moving_time: number;
+  distance: number;
+  count: number;
+}
+
 export type ListActivitiesParams = {
 page?: number;
 per_page?: number;
@@ -223,5 +233,9 @@ after?: number | null;
 
 export type GetWeeklyStatsParams = {
 weeks?: number;
+};
+
+export type GetDailyStatsParams = {
+days?: number;
 };
 

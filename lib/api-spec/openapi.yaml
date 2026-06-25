@@ -169,6 +169,27 @@ paths:
                 items:
                   $ref: "#/components/schemas/SportTypeCount"
 
+  /stats/daily:
+    get:
+      operationId: getDailyStats
+      tags: [stats]
+      summary: Get per-day activity totals for heatmap rendering
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 364
+      responses:
+        "200":
+          description: Daily activity breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyActivity"
+
 components:
   schemas:
     HealthStatus:
@@ -508,4 +529,21 @@ components:
         distance:
           type: number
         moving_time:
+          type: integer
+
+    DailyActivity:
+      type: object
+      required: [date, sport_type, moving_time, distance, count]
+      properties:
+        date:
+          type: string
+          description: ISO date YYYY-MM-DD in local time
+        sport_type:
+          type: string
+          description: Normalized sport type (Ride, Run, Swim, Other)
+        moving_time:
+          type: integer
+        distance:
+          type: number
+        count:
           type: integer

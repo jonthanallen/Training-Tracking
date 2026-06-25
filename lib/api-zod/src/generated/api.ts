@@ -282,3 +282,22 @@ export const GetActivityTypesResponseItem = zod.object({
 export const GetActivityTypesResponse = zod.array(GetActivityTypesResponseItem)
 
 
+/**
+ * @summary Get per-day activity totals for heatmap rendering
+ */
+export const getDailyStatsQueryDaysDefault = 364;
+
+export const GetDailyStatsQueryParams = zod.object({
+  "days": zod.coerce.number().default(getDailyStatsQueryDaysDefault)
+})
+
+export const GetDailyStatsResponseItem = zod.object({
+  "date": zod.string().describe('ISO date YYYY-MM-DD in local time'),
+  "sport_type": zod.string().describe('Normalized sport type (Ride, Run, Swim, Other)'),
+  "moving_time": zod.number(),
+  "distance": zod.number(),
+  "count": zod.number()
+})
+export const GetDailyStatsResponse = zod.array(GetDailyStatsResponseItem)
+
+

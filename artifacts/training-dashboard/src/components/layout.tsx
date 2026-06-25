@@ -16,7 +16,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/activities", label: "Activities", icon: List },
-    { href: "/stats", label: "Stats", icon: BarChart3 },
+    { href: "/stats", label: "Trends", icon: BarChart3 },
   ];
 
   const SidebarContent = () => (
