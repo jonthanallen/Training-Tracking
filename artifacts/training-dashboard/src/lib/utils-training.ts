@@ -10,9 +10,9 @@ import {
 export function formatDistance(meters: number, measurePref: string = 'metric'): string {
   if (!meters) return '0.0';
   if (measurePref === 'imperial') {
-    return (meters * 0.000621371).toFixed(2) + ' mi';
+    return (meters * 0.000621371).toFixed(1) + ' mi';
   }
-  return (meters / 1000).toFixed(2) + ' km';
+  return (meters / 1000).toFixed(1) + ' km';
 }
 
 export function formatDuration(seconds: number): string {
