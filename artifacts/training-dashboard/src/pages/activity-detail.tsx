@@ -147,8 +147,8 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
 }) {
   const isImperial = measurePref === "imperial";
   const isRide = sportType?.toLowerCase().includes("ride");
-
-  const isRun = sportType?.toLowerCase().includes("run");
+  const isRun  = sportType?.toLowerCase().includes("run");
+  const isSwim = sportType?.toLowerCase().includes("swim");
 
   const available: Record<string, boolean> = {
     elev:    !!(streams.altitude?.length),
@@ -194,9 +194,17 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
   function fmtTooltipVal(key: string, raw: number): string {
     if (key === "elev")    return isImperial ? `${Math.round(raw * 3.28084)} ft` : `${Math.round(raw)} m`;
     if (key === "hr")      return `${Math.round(raw)} bpm`;
-    if (key === "speed")   return isRide
-      ? (isImperial ? `${(raw * 2.23694).toFixed(1)} mph` : `${(raw * 3.6).toFixed(1)} km/h`)
-      : (isImperial ? `${(26.8224 / raw).toFixed(2)} /mi` : `${(16.6667 / raw).toFixed(2)} /km`);
+    if (key === "speed") {
+      if (isSwim) {
+        const secs = 100 / raw;
+        const m = Math.floor(secs / 60);
+        const s = Math.floor(secs % 60);
+        return `${m}:${s.toString().padStart(2, "0")}/100m`;
+      }
+      return isRide
+        ? (isImperial ? `${(raw * 2.23694).toFixed(1)} mph` : `${(raw * 3.6).toFixed(1)} km/h`)
+        : (isImperial ? `${(26.8224 / raw).toFixed(2)} /mi` : `${(16.6667 / raw).toFixed(2)} /km`);
+    }
     if (key === "power")   return `${Math.round(raw)} W`;
     if (key === "cadence") return `${Math.round(raw)} rpm`;
     return String(raw);
@@ -244,7 +252,7 @@ function ActivityChart({ streams, measurePref, sportType, laps }: {
               }}
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: show[s.key] ? s.color : "transparent", border: `2px solid ${s.color}`, display: "inline-block" }} />
-              {s.label}
+              {s.key === "speed" && isSwim ? "Pace" : s.label}
             </button>
           ))}
         </div>
