@@ -407,10 +407,8 @@ export default function Stats() {
       {/* ── Activities for selected range ── */}
       <div className="bg-card border border-border rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-              {rangeLabel}
-            </h2>
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            {rangeLabel}
             {rangeActivities && rangeActivities.length > 0 && (() => {
               const totalSecs = rangeActivities.reduce((s, a) => s + (a.moving_time ?? 0), 0);
               const totalDist = rangeActivities.reduce((s, a) => s + (a.distance ?? 0), 0);
@@ -419,13 +417,9 @@ export default function Stats() {
               const distStr = measurePref === "imperial"
                 ? `${(totalDist * 0.000621371).toFixed(1)} mi`
                 : `${(totalDist / 1000).toFixed(1)} km`;
-              return (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`} · {distStr}
-                </p>
-              );
+              return ` | ${hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`} | ${distStr}`;
             })()}
-          </div>
+          </h2>
           {selectedRange.type === "day" && (
             <button
               onClick={() => setSelectedRange({ type: "week", weekStart: getCurrentWeekMonday() })}
