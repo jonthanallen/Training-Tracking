@@ -216,11 +216,11 @@ export default function ActivityDetail() {
                       </td>
                     )}
                     {activity.laps!.some((ll) => ll.average_watts) && (
-                      <td className="px-5 py-2.5 text-right text-muted-foreground">
+                      <td className="px-5 py-2.5 text-right">
                         {l.average_watts ? `${Math.round(l.average_watts)}W` : "—"}
                       </td>
                     )}
-                    <td className="px-5 py-2.5 text-right text-muted-foreground">
+                    <td className="px-5 py-2.5 text-right">
                       {l.total_elevation_gain != null ? `${Math.round(l.total_elevation_gain)}m` : "—"}
                     </td>
                   </tr>
