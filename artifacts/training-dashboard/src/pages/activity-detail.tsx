@@ -290,6 +290,7 @@ export default function ActivityDetail() {
   const { data: streams } = useGetActivityStreams(actId, { query: { enabled: !!actId, queryKey: getGetActivityStreamsQueryKey(actId) } });
 
   const measurePref = athlete?.measurement_preference ?? "metric";
+  const [lapsCollapsed, setLapsCollapsed] = useState(false);
 
   if (isLoading) {
     return (
@@ -375,10 +376,14 @@ export default function ActivityDetail() {
       {/* Laps */}
       {activity.laps && activity.laps.length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-5 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Laps</h3>
-          </div>
-          <div className="overflow-x-auto">
+          <button
+            onClick={() => setLapsCollapsed((c) => !c)}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/40 transition-colors"
+          >
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Laps</h3>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${lapsCollapsed ? "-rotate-90" : ""}`} />
+          </button>
+          {!lapsCollapsed && <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
@@ -419,7 +424,7 @@ export default function ActivityDetail() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}
         </div>
       )}
 
