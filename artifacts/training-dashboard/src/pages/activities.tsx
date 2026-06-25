@@ -45,7 +45,7 @@ export default function Activities() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Activities</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Activities</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Your complete training log</p>
         </div>
         <Select value={sportType} onValueChange={handleSportChange}>

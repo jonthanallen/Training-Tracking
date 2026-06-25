@@ -203,7 +203,7 @@ export default function Stats() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Trends</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Trends</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Rolling 52 weeks of training data</p>
       </div>
 
