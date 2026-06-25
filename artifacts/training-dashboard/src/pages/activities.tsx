@@ -5,10 +5,20 @@ import { Link } from "wouter";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight, Heart, Mountain, ChevronDown } from "lucide-react";
 
-const SPORT_TYPES = ["All", "Run", "Ride", "Swim", "Walk", "WeightTraining", "Workout", "Hike"];
+const PER_PAGE = 30;
+
+const SPORT_FILTERS = [
+  { label: "All", value: "All" },
+  { label: "Run", value: "Run" },
+  { label: "Ride", value: "Ride" },
+  { label: "Swim", value: "Swim" },
+  { label: "Walk", value: "Walk" },
+  { label: "Hike", value: "Hike" },
+  { label: "Weights", value: "WeightTraining" },
+  { label: "Workout", value: "Workout" },
+];
 
 export default function Activities() {
   const [page, setPage] = useState(1);
@@ -18,7 +28,7 @@ export default function Activities() {
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
   const measurePref = athlete?.measurement_preference ?? "metric";
 
-  const params = { per_page: 20, page, ...(sportType !== "All" ? { type: sportType } : {}) };
+  const params = { per_page: PER_PAGE, page, ...(sportType !== "All" ? { type: sportType } : {}) };
   const { data: newActivities, isLoading, isFetching } = useListActivities(
     params,
     { query: { queryKey: getListActivitiesQueryKey(params) } }
@@ -39,25 +49,34 @@ export default function Activities() {
     setAllActivities([]);
   };
 
-  const hasMore = (newActivities?.length ?? 0) === 20;
+  const hasMore = (newActivities?.length ?? 0) === PER_PAGE;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Activities</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Your complete training log</p>
-        </div>
-        <Select value={sportType} onValueChange={handleSportChange}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Sport type" />
-          </SelectTrigger>
-          <SelectContent>
-            {SPORT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t === "All" ? "All Sports" : t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Activities</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Your complete training log</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {SPORT_FILTERS.map((f) => {
+          const active = sportType === f.value;
+          const Icon = f.value !== "All" ? sportTypeIcon(f.value) : null;
+          return (
+            <button
+              key={f.value}
+              onClick={() => handleSportChange(f.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+              }`}
+            >
+              {Icon && <Icon className="w-3.5 h-3.5" />}
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="bg-card border border-border rounded-lg divide-y divide-border">
