@@ -7,13 +7,14 @@ import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeI
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/chart-tooltip";
-import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Trophy, Wind } from "lucide-react";
+import { ArrowLeft, Heart, Zap, Activity, Mountain, Timer, Flame, Trophy, Wind, ChevronDown } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 function RouteMap({ latlng }: { latlng: number[][] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !latlng || latlng.length < 2) return;
@@ -97,14 +98,26 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
     };
   }, [latlng]);
 
+  useEffect(() => {
+    if (!collapsed && mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 0);
+    }
+  }, [collapsed]);
+
   if (!latlng || latlng.length < 2) return null;
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="px-4 pt-4 pb-2">
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+      >
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Route</h3>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+      </button>
+      <div style={{ display: collapsed ? "none" : "block" }}>
+        <div ref={containerRef} style={{ height: 280 }} />
       </div>
-      <div ref={containerRef} style={{ height: 280 }} />
     </div>
   );
 }
@@ -144,6 +157,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
 
   const [show, setShow] = useState<Record<string, boolean>>({ elev: true, hr: true, speed: !isRide, power: true, cadence: false });
   const toggle = (key: string) => setShow((s) => ({ ...s, [key]: !s[key] }));
+  const [collapsed, setCollapsed] = useState(false);
 
   const n = streams.altitude?.length ?? streams.distance?.length ?? 0;
   const step = Math.max(1, Math.floor(n / 400));
@@ -189,9 +203,16 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const visibleSeries = SERIES.filter((s) => available[s.key]);
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+      >
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Chart</h3>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+      </button>
+      {!collapsed && <div className="px-4 pb-4">
+      <div className="flex items-center justify-end mb-3 flex-wrap gap-2">
         <div className="flex gap-1.5 flex-wrap">
           {visibleSeries.map((s) => (
             <button
@@ -255,6 +276,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
           )}
         </ComposedChart>
       </ResponsiveContainer>
+      </div>}
     </div>
   );
 }
