@@ -142,7 +142,7 @@ function ActivityChart({ streams, measurePref, sportType }: {
     cadence: !!(streams.cadence?.length),
   };
 
-  const [show, setShow] = useState<Record<string, boolean>>({ elev: true, hr: true, speed: true, power: true, cadence: true });
+  const [show, setShow] = useState<Record<string, boolean>>({ elev: true, hr: true, speed: true, power: true, cadence: false });
   const toggle = (key: string) => setShow((s) => ({ ...s, [key]: !s[key] }));
 
   const n = streams.altitude?.length ?? streams.distance?.length ?? 0;
