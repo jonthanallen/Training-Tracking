@@ -83,7 +83,7 @@ function RouteMap({ latlng }: { latlng: number[][] }) {
         const reset = L.DomUtil.create("a", "", bar) as HTMLAnchorElement;
         reset.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>`;
         reset.title = "Reset view";
-        reset.style.cssText = btnStyle;
+        reset.style.cssText = "width:26px;height:26px;cursor:pointer;background:#fff;border:none;display:flex;align-items:center;justify-content:center;color:#444;";
         L.DomEvent.on(reset, "click", (e) => { L.DomEvent.stopPropagation(e); map.fitBounds(initialBounds, { padding: [8, 8] }); });
 
         return bar;
