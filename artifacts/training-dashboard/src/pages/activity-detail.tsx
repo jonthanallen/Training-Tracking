@@ -165,7 +165,7 @@ export default function ActivityDetail() {
               <s.icon className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</span>
             </div>
-            <p className="text-lg font-bold font-mono">{s.value}</p>
+            <p className="text-lg font-bold">{s.value}</p>
           </div>
         ))}
       </div>
@@ -203,16 +203,16 @@ export default function ActivityDetail() {
               <tbody className="divide-y divide-border">
                 {activity.splits_metric.map((s) => (
                   <tr key={s.split} className="hover:bg-muted/40 transition-colors">
-                    <td className="px-5 py-2.5 font-mono text-muted-foreground">{s.split}</td>
-                    <td className="px-5 py-2.5 text-right font-mono">{formatDistance(s.distance, measurePref)}</td>
-                    <td className="px-5 py-2.5 text-right font-mono">{formatDurationShort(s.moving_time)}</td>
-                    <td className="px-5 py-2.5 text-right font-mono">{formatPace(s.average_speed ?? 0, activity.sport_type, measurePref)}</td>
+                    <td className="px-5 py-2.5 text-muted-foreground">{s.split}</td>
+                    <td className="px-5 py-2.5 text-right">{formatDistance(s.distance, measurePref)}</td>
+                    <td className="px-5 py-2.5 text-right">{formatDurationShort(s.moving_time)}</td>
+                    <td className="px-5 py-2.5 text-right">{formatPace(s.average_speed ?? 0, activity.sport_type, measurePref)}</td>
                     {activity.splits_metric!.some((sp) => sp.average_heartrate) && (
-                      <td className="px-5 py-2.5 text-right font-mono text-muted-foreground">
+                      <td className="px-5 py-2.5 text-right text-muted-foreground">
                         {s.average_heartrate ? Math.round(s.average_heartrate) : "—"}
                       </td>
                     )}
-                    <td className="px-5 py-2.5 text-right font-mono text-muted-foreground">
+                    <td className="px-5 py-2.5 text-right text-muted-foreground">
                       {s.elevation_difference != null ? `${s.elevation_difference > 0 ? "+" : ""}${Math.round(s.elevation_difference)}m` : "—"}
                     </td>
                   </tr>
@@ -234,7 +234,7 @@ export default function ActivityDetail() {
               <div key={seg.id} className="px-5 py-3 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{seg.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono">
+                  <p className="text-xs text-muted-foreground">
                     {formatDistance(seg.distance ?? 0, measurePref)} · {formatDuration(seg.elapsed_time)}
                   </p>
                 </div>
@@ -246,7 +246,7 @@ export default function ActivityDetail() {
                     <Badge variant="secondary" className="text-xs">#{seg.pr_rank}</Badge>
                   )}
                   {seg.average_watts && (
-                    <span className="text-xs font-mono text-muted-foreground">{Math.round(seg.average_watts)}W</span>
+                    <span className="text-xs text-muted-foreground">{Math.round(seg.average_watts)}W</span>
                   )}
                 </div>
               </div>

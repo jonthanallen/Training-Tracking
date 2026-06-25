@@ -89,7 +89,7 @@ export default function Dashboard() {
               <Skeleton className="h-7 w-24" />
             ) : (
               <div>
-                <div className="text-xl font-bold font-mono text-primary">{stat.value}</div>
+                <div className="text-xl font-bold text-primary">{stat.value}</div>
                 {stat.prev && (
                   <div className="text-xs text-muted-foreground mt-0.5">vs {stat.prev} last week</div>
                 )}
@@ -144,7 +144,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium truncate">{t.sport_type}</span>
-                    <span className="text-xs text-muted-foreground font-mono ml-2">{t.count}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{t.count}</span>
                   </div>
                   <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
                     <div
@@ -198,8 +198,8 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <div className="text-right shrink-0 space-y-0.5">
-                      <p className="text-sm font-mono font-medium">{formatDistance(act.distance, measurePref)}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
+                      <p className="text-sm font-medium">{formatDistance(act.distance, measurePref)}</p>
+                      <p className="text-xs text-muted-foreground">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                   </div>

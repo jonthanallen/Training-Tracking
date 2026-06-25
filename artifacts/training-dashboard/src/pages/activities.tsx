@@ -98,19 +98,19 @@ export default function Activities() {
 
                   <div className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground shrink-0">
                     <div className="text-right">
-                      <p className="font-mono font-semibold text-foreground">{formatDistance(act.distance, measurePref)}</p>
-                      <p className="text-xs font-mono">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
+                      <p className="font-semibold text-foreground">{formatDistance(act.distance, measurePref)}</p>
+                      <p className="text-xs">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-mono text-foreground">{formatDuration(act.moving_time)}</p>
-                      <p className="text-xs font-mono flex items-center justify-end gap-0.5">
+                      <p className="text-foreground">{formatDuration(act.moving_time)}</p>
+                      <p className="text-xs flex items-center justify-end gap-0.5">
                         <Mountain className="w-3 h-3" />
                         {formatElevation(act.total_elevation_gain ?? 0, measurePref)}
                       </p>
                     </div>
                     {act.average_heartrate && (
                       <div className="text-right">
-                        <p className="font-mono text-foreground flex items-center justify-end gap-1">
+                        <p className="text-foreground flex items-center justify-end gap-1">
                           <Heart className="w-3 h-3 text-red-500" />
                           {Math.round(act.average_heartrate)}
                         </p>
