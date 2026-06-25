@@ -9,7 +9,7 @@ import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import type { TooltipProps } from "recharts";
-import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
+import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor, displaySportType } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
 import { ArrowRight, TrendingUp, Clock, Mountain, Flame, Heart } from "lucide-react";
@@ -282,7 +282,7 @@ export default function Dashboard() {
               <Toggle
                 options={[
                   { label: "All", value: "All" },
-                  { label: "Ride", value: "Ride" },
+                  { label: "Bike", value: "Ride" },
                   { label: "Run", value: "Run" },
                   { label: "Swim", value: "Swim" },
                   { label: "Other", value: "Other" },
@@ -431,7 +431,7 @@ export default function Dashboard() {
                             weekday: "short", month: "short", day: "numeric",
                           })}
                           {" · "}
-                          <span className="capitalize">{act.sport_type}</span>
+                          <span>{displaySportType(act.sport_type)}</span>
                         </p>
                       </div>
                       <div className="hidden sm:flex items-center gap-6 text-sm text-muted-foreground shrink-0">

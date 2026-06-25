@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useGetAthlete, useListActivities, getGetAthleteQueryKey, getListActivitiesQueryKey } from "@workspace/api-client-react";
 import type { Activity } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
+import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor, displaySportType } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart, Mountain, ChevronDown } from "lucide-react";
@@ -12,7 +12,7 @@ const PER_PAGE = 30;
 const SPORT_FILTERS = [
   { label: "All", value: "All" },
   { label: "Run", value: "Run" },
-  { label: "Ride", value: "Ride" },
+  { label: "Bike", value: "Ride" },
   { label: "Swim", value: "Swim" },
   { label: "Walk", value: "Walk" },
   { label: "Hike", value: "Hike" },
@@ -147,7 +147,7 @@ export default function Activities() {
                         day: "numeric",
                       })}
                       {" · "}
-                      <span className="capitalize">{act.sport_type}</span>
+                      <span>{displaySportType(act.sport_type)}</span>
                     </p>
                   </div>
 

@@ -84,6 +84,18 @@ export function formatPace(metersPerSec: number, sportType: string, measurePref:
   }
 }
 
+export function displaySportType(sportType: string): string {
+  const t = sportType?.toLowerCase() || '';
+  if (t.includes('ride') || t.includes('bike') || t.includes('cycl')) return 'Bike';
+  if (t.includes('run')) return 'Run';
+  if (t.includes('swim')) return 'Swim';
+  if (t.includes('walk')) return 'Walk';
+  if (t.includes('hike')) return 'Hike';
+  if (t.includes('weight')) return 'Weights';
+  if (t.includes('workout')) return 'Workout';
+  return sportType;
+}
+
 export function formatElevation(meters: number, measurePref: string = 'metric'): string {
   if (!meters) return '0 m';
   if (measurePref === 'imperial') {

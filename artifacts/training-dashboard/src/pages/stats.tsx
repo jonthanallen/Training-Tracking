@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { displaySportType } from "@/lib/utils-training";
 import {
   useGetAthlete,
   useGetWeeklyStats,
@@ -255,7 +256,7 @@ export default function Stats() {
           <Toggle
             options={[
               { label: "All", value: "All" },
-              { label: "Ride", value: "Ride" },
+              { label: "Bike", value: "Ride" },
               { label: "Run", value: "Run" },
               { label: "Swim", value: "Swim" },
               { label: "Other", value: "Other" },
@@ -285,7 +286,7 @@ export default function Stats() {
                   lines={
                     hoverCell.cell.activities.length > 0
                       ? hoverCell.cell.activities.map((a) => ({
-                          text: `${a.sport_type}${a.distance ? `  ${formatDist(a.distance, measurePref)}` : ""}`,
+                          text: `${displaySportType(a.sport_type)}${a.distance ? `  ${formatDist(a.distance, measurePref)}` : ""}`,
                           color: SPORT_COLOR[a.sport_type as SportFilter] ?? SPORT_COLOR.Other,
                         }))
                       : [{ text: "Rest", color: "hsl(var(--muted-foreground))" }]

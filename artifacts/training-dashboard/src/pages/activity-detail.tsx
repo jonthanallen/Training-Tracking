@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGetAthlete, useGetActivity, useGetActivityStreams, getGetAthleteQueryKey, getGetActivityQueryKey, getGetActivityStreamsQueryKey } from "@workspace/api-client-react";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { TooltipProps } from "recharts";
-import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
+import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor, displaySportType } from "@/lib/utils-training";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ChartTooltip } from "@/components/chart-tooltip";
@@ -369,7 +369,7 @@ export default function ActivityDetail() {
                   weekday: "long", year: "numeric", month: "long", day: "numeric",
                 })}
               </span>
-              <Badge variant="secondary" className="text-xs">{activity.sport_type}</Badge>
+              <Badge variant="secondary" className="text-xs">{displaySportType(activity.sport_type)}</Badge>
             </div>
             {activity.description && (
               <p className="text-sm text-muted-foreground mt-2 max-w-prose">{activity.description}</p>
