@@ -6,7 +6,7 @@ import {
 import type { DailyActivity } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import type { TooltipProps } from "recharts";
 import { formatDistance, formatDuration, formatPace, formatElevation, sportTypeIcon, sportTypeColor } from "@/lib/utils-training";
@@ -169,6 +169,22 @@ export default function Dashboard() {
 
   const areaColor = SPORT_COLOR[sportFilter];
 
+  const cumulativeMonthlyData = useMemo(() => {
+    if (!monthlyStats?.days) return [];
+    const todayDay = new Date().getDate();
+    let cumThis = 0;
+    let cumLast = 0;
+    return monthlyStats.days.map((d) => {
+      cumThis += d.this_month ?? 0;
+      cumLast += d.last_month ?? 0;
+      return {
+        day: d.day,
+        this_month: d.day <= todayDay ? parseFloat(cumThis.toFixed(2)) : null,
+        last_month: parseFloat(cumLast.toFixed(2)),
+      };
+    });
+  }, [monthlyStats]);
+
   const AreaTooltipContent = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
     const v = payload[0].value as number;
@@ -180,9 +196,9 @@ export default function Dashboard() {
   const MonthlyTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
     const lines = payload
-      .filter((p) => p.value != null && (p.value as number) > 0)
+      .filter((p) => p.value != null)
       .map((p) => ({
-        text: `${p.name}: ${(p.value as number).toFixed(2)} h`,
+        text: `${p.name}: ${fmtHours(p.value as number)}`,
         color: p.color ?? "hsl(var(--foreground))",
       }));
     if (!lines.length) return null;
@@ -299,18 +315,13 @@ export default function Dashboard() {
         {/* Month vs Last Month */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="mb-3">
-            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Monthly Hours</h2>
-            {monthlyStats && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {monthlyStats.last_month_name} vs {monthlyStats.this_month_name}
-              </p>
-            )}
+            <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Monthly Compare</h2>
           </div>
           {loadingMonthly ? (
             <Skeleton className="h-40 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={monthlyStats?.days} barSize={3} barCategoryGap="10%">
+              <LineChart data={cumulativeMonthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                 <XAxis
                   dataKey="day"
                   tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
@@ -319,20 +330,36 @@ export default function Dashboard() {
                   interval={4}
                 />
                 <YAxis hide />
-                <Tooltip content={<MonthlyTooltipContent />} cursor={{ fill: "hsl(var(--muted) / 0.3)" }} />
-                <Bar dataKey="last_month" name={monthlyStats?.last_month_name} fill="hsl(var(--primary) / 0.3)" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="this_month" name={monthlyStats?.this_month_name} fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
-              </BarChart>
+                <Tooltip content={<MonthlyTooltipContent />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
+                <Line
+                  type="linear"
+                  dataKey="last_month"
+                  name={monthlyStats?.last_month_name}
+                  stroke="hsl(var(--primary) / 0.35)"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
+                <Line
+                  type="linear"
+                  dataKey="this_month"
+                  name={monthlyStats?.this_month_name}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                />
+              </LineChart>
             </ResponsiveContainer>
           )}
           {monthlyStats && (
             <div className="flex items-center gap-4 mt-2 justify-end">
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "hsl(var(--primary) / 0.3)" }} />
+                <div className="w-10 h-0.5 rounded-full" style={{ background: "hsl(var(--primary) / 0.35)" }} />
                 <span className="text-[10px] text-muted-foreground">{monthlyStats.last_month_name}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "hsl(var(--primary))" }} />
+                <div className="w-10 h-0.5 rounded-full" style={{ background: "hsl(var(--primary))" }} />
                 <span className="text-[10px] text-muted-foreground">{monthlyStats.this_month_name}</span>
               </div>
             </div>
