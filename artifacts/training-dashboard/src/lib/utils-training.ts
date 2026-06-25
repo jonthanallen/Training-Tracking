@@ -53,9 +53,19 @@ export function formatDurationShort(seconds: number): string {
 
 export function formatPace(metersPerSec: number, sportType: string, measurePref: string = 'metric'): string {
   if (!metersPerSec) return '0:00';
-  
-  const isRun = sportType.toLowerCase().includes('run') || sportType.toLowerCase().includes('walk');
-  
+
+  const t = sportType.toLowerCase();
+  const isSwim = t.includes('swim');
+  const isRun = t.includes('run') || t.includes('walk') || t.includes('hike');
+
+  if (isSwim) {
+    // Pace in min:ss/100m (pool standard)
+    const secondsPer100m = 100 / metersPerSec;
+    const mins = Math.floor(secondsPer100m / 60);
+    const secs = Math.floor(secondsPer100m % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}/100m`;
+  }
+
   if (isRun) {
     // Pace in min/km or min/mi
     const metersPerUnit = measurePref === 'imperial' ? 1609.34 : 1000;
