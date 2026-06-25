@@ -1,23 +1,33 @@
 import { useState, useMemo, useRef } from "react";
-import { displaySportType } from "@/lib/utils-training";
+import { Link } from "wouter";
+import {
+  displaySportType, formatDistance, formatDuration, formatPace,
+  formatElevation, sportTypeIcon, sportTypeColor,
+} from "@/lib/utils-training";
 import {
   useGetAthlete,
   useGetWeeklyStats,
   useGetDailyStats,
+  useListActivities,
   getGetAthleteQueryKey,
   getGetWeeklyStatsQueryKey,
   getGetDailyStatsQueryKey,
+  getListActivitiesQueryKey,
 } from "@workspace/api-client-react";
-import type { DailyActivity } from "@workspace/api-client-react";
+import type { DailyActivity, Activity } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
+import { ArrowRight, Heart, Zap } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ChartMode = "hours" | "km";
 type SportFilter = "All" | "Ride" | "Run" | "Swim" | "Other";
+type SelectedRange =
+  | { type: "week"; weekStart: string }
+  | { type: "day"; date: string };
 
 interface CellActivity { sport_type: string; distance: number }
 interface CalendarCell { date: string; trained: boolean; activities: CellActivity[] }
@@ -34,8 +44,8 @@ function formatWeekRange(weekStart: string): string {
   end.setDate(start.getDate() + 6);
   const startMonth = start.toLocaleDateString("en", { month: "short" });
   const endMonth   = end.toLocaleDateString("en",   { month: "short" });
-  if (startMonth === endMonth) return `${startMonth} ${start.getDate()} - ${end.getDate()}`;
-  return `${startMonth} ${start.getDate()} - ${endMonth} ${end.getDate()}`;
+  if (startMonth === endMonth) return `${startMonth} ${start.getDate()} – ${end.getDate()}`;
+  return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}`;
 }
 
 function formatDayLabel(dateStr: string): string {
@@ -48,6 +58,30 @@ function formatDist(meters: number, measurePref: string): string {
   return `${(meters / 1000).toFixed(2)} km`;
 }
 
+function getCurrentWeekMonday(): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = today.getDay();
+  const daysToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + daysToMonday);
+  return monday.toISOString().split("T")[0];
+}
+
+function rangeToTimestamps(range: SelectedRange): { after: number; before: number } {
+  if (range.type === "week") {
+    const start = parseLocalDate(range.weekStart);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { after: Math.floor(start.getTime() / 1000), before: Math.floor(end.getTime() / 1000) };
+  } else {
+    const start = parseLocalDate(range.date);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
+    return { after: Math.floor(start.getTime() / 1000), before: Math.floor(end.getTime() / 1000) };
+  }
+}
+
 // ─── Sport color ──────────────────────────────────────────────────────────────
 
 const SPORT_COLOR: Record<SportFilter, string> = {
@@ -58,13 +92,9 @@ const SPORT_COLOR: Record<SportFilter, string> = {
   Other: "hsl(0 0% 55%)",
 };
 
-// ─── Calendar grid (Mon top → Sun bottom, left = oldest week) ────────────────
+// ─── Calendar grid ─────────────────────────────────────────────────────────────
 
-function buildCalendarGrid(
-  dailyData: DailyActivity[],
-  sport: SportFilter
-): CalendarCell[][] {
-  // Build: date → list of matching activities
+function buildCalendarGrid(dailyData: DailyActivity[], sport: SportFilter): CalendarCell[][] {
   const dayMap = new Map<string, CellActivity[]>();
   for (const entry of dailyData) {
     const matches = sport === "All" || entry.sport_type === sport;
@@ -76,16 +106,11 @@ function buildCalendarGrid(
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  // Find the most recent Sunday (so the last column ends on Sunday)
   const lastSunday = new Date(today);
   lastSunday.setDate(today.getDate() + ((7 - today.getDay()) % 7));
-
-  // First Monday = lastSunday - 52*7 + 1 days
   const firstMonday = new Date(lastSunday);
   firstMonday.setDate(lastSunday.getDate() - 52 * 7 + 1);
 
-  // Build 52 columns (weeks), each with 7 rows (Mon=0 … Sun=6)
   const weeks: CalendarCell[][] = [];
   for (let w = 0; w < 52; w++) {
     const col: CalendarCell[] = [];
@@ -102,7 +127,6 @@ function buildCalendarGrid(
   return weeks;
 }
 
-// Month labels: position above the first column that starts a new month
 function getMonthLabels(weeks: CalendarCell[][]): { col: number; label: string }[] {
   const labels: { col: number; label: string }[] = [];
   let lastMonth = -1;
@@ -117,12 +141,9 @@ function getMonthLabels(weeks: CalendarCell[][]): { col: number; label: string }
   return labels;
 }
 
+// ─── Toggle ────────────────────────────────────────────────────────────────────
 
-// ─── Toggle button ─────────────────────────────────────────────────────────────
-
-function Toggle<T extends string>({
-  options, value, onChange,
-}: {
+function Toggle<T extends string>({ options, value, onChange }: {
   options: { label: string; value: T }[];
   value: T;
   onChange: (v: T) => void;
@@ -152,6 +173,9 @@ export default function Stats() {
   const [chartMode, setChartMode] = useState<ChartMode>("hours");
   const [sportFilter, setSportFilter] = useState<SportFilter>("All");
   const [hoverCell, setHoverCell] = useState<{ cell: CalendarCell; x: number; y: number } | null>(null);
+  const [selectedRange, setSelectedRange] = useState<SelectedRange>(
+    { type: "week", weekStart: getCurrentWeekMonday() }
+  );
   const heatmapRef = useRef<HTMLDivElement>(null);
 
   const { data: athlete } = useGetAthlete({ query: { queryKey: getGetAthleteQueryKey() } });
@@ -167,10 +191,18 @@ export default function Stats() {
     { query: { queryKey: getGetDailyStatsQueryKey({ days: 364 }) } }
   );
 
+  const rangeTimestamps = useMemo(() => rangeToTimestamps(selectedRange), [selectedRange]);
+
+  const { data: rangeActivities, isLoading: loadingRangeActivities } = useListActivities(
+    { per_page: 30, after: rangeTimestamps.after, before: rangeTimestamps.before },
+    { query: { queryKey: getListActivitiesQueryKey({ per_page: 30, after: rangeTimestamps.after, before: rangeTimestamps.before }) } }
+  );
+
   const distUnit = measurePref === "imperial" ? "mi" : "km";
 
   const weeklyChartData = useMemo(() =>
     weeklyStats?.map((w) => ({
+      weekStart: w.week_start,
       weekLabel: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
       weekRange: formatWeekRange(w.week_start),
       hours: parseFloat((w.moving_time / 3600).toFixed(2)),
@@ -180,8 +212,6 @@ export default function Stats() {
     })),
     [weeklyStats, measurePref]
   );
-
-
 
   const calendarGrid = useMemo(
     () => dailyStats ? buildCalendarGrid(dailyStats, sportFilter) : [],
@@ -198,8 +228,11 @@ export default function Stats() {
     return <ChartTooltip label={row.weekRange} lines={[{ text: val, color: "hsl(15 90% 55%)" }]} />;
   };
 
-  // Day-of-week labels: Mon(0)…Sun(6), show Mon/Wed/Fri/Sun
   const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const rangeLabel = selectedRange.type === "week"
+    ? `Week of ${formatWeekRange(selectedRange.weekStart)}`
+    : formatDayLabel(selectedRange.date);
 
   return (
     <div className="space-y-8">
@@ -243,7 +276,15 @@ export default function Stats() {
                 width={28}
               />
               <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-              <Bar dataKey={chartMode} radius={[2, 2, 0, 0]} fill="hsl(var(--primary))" />
+              <Bar
+                dataKey={chartMode}
+                radius={[2, 2, 0, 0]}
+                fill="hsl(var(--primary))"
+                style={{ cursor: "pointer" }}
+                onClick={(data: { weekStart: string }) =>
+                  setSelectedRange({ type: "week", weekStart: data.weekStart })
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -270,7 +311,6 @@ export default function Stats() {
           <Skeleton className="h-24 w-full" />
         ) : (
           <div className="w-full relative" ref={heatmapRef}>
-            {/* Floating tooltip */}
             {hoverCell && (
               <div
                 style={{
@@ -295,7 +335,6 @@ export default function Stats() {
               </div>
             )}
 
-            {/* Month labels aligned with week columns */}
             <div className="flex w-full mb-1" style={{ paddingLeft: 30 }}>
               {calendarGrid.map((_, colIdx) => {
                 const label = monthLabels.find((m) => m.col === colIdx);
@@ -311,58 +350,138 @@ export default function Stats() {
               })}
             </div>
 
-            {/* Grid */}
             <div className="flex w-full gap-[2px]">
-              {/* Day-of-week labels: Mon … Sun */}
               <div className="flex flex-col gap-[2px] shrink-0 self-stretch" style={{ width: 28 }}>
                 {DAY_LABELS.map((d) => (
-                  <div
-                    key={d}
-                    className="text-[9px] text-muted-foreground flex items-center"
-                    style={{ flex: 1 }}
-                  >
+                  <div key={d} className="text-[9px] text-muted-foreground flex items-center" style={{ flex: 1 }}>
                     {d}
                   </div>
                 ))}
               </div>
 
-              {/* Week columns */}
               {calendarGrid.map((week, colIdx) => (
                 <div key={colIdx} className="flex flex-col gap-[2px]" style={{ flex: 1, minWidth: 0 }}>
-                  {week.map((cell) => (
-                    <div
-                      key={cell.date}
-                      style={{
-                        width: "100%",
-                        aspectRatio: "1 / 1",
-                        borderRadius: 2,
-                        backgroundColor: cell.trained ? activeColor : "hsl(var(--muted))",
-                        cursor: "default",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!heatmapRef.current) return;
-                        const rect = (e.target as HTMLElement).getBoundingClientRect();
-                        const containerRect = heatmapRef.current.getBoundingClientRect();
-                        setHoverCell({
-                          cell,
-                          x: rect.left - containerRect.left + rect.width / 2,
-                          y: rect.top - containerRect.top,
-                        });
-                      }}
-                      onMouseLeave={() => setHoverCell(null)}
-                    />
-                  ))}
+                  {week.map((cell) => {
+                    const isSelected = selectedRange.type === "day" && selectedRange.date === cell.date;
+                    return (
+                      <div
+                        key={cell.date}
+                        style={{
+                          width: "100%",
+                          aspectRatio: "1 / 1",
+                          borderRadius: 2,
+                          backgroundColor: cell.trained ? activeColor : "hsl(var(--muted))",
+                          cursor: "pointer",
+                          outline: isSelected ? "2px solid hsl(var(--primary))" : "none",
+                          outlineOffset: 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!heatmapRef.current) return;
+                          const rect = (e.target as HTMLElement).getBoundingClientRect();
+                          const containerRect = heatmapRef.current.getBoundingClientRect();
+                          setHoverCell({
+                            cell,
+                            x: rect.left - containerRect.left + rect.width / 2,
+                            y: rect.top - containerRect.top,
+                          });
+                        }}
+                        onMouseLeave={() => setHoverCell(null)}
+                        onClick={() => setSelectedRange({ type: "day", date: cell.date })}
+                      />
+                    );
+                  })}
                 </div>
               ))}
             </div>
 
-            {/* Legend */}
             <div className="flex items-center gap-2 mt-3 justify-end">
               <div style={{ width: 11, height: 11, borderRadius: 2, backgroundColor: "hsl(var(--muted))" }} />
               <span className="text-[10px] text-muted-foreground">Rest</span>
               <div style={{ width: 11, height: 11, borderRadius: 2, backgroundColor: activeColor }} />
               <span className="text-[10px] text-muted-foreground">Trained</span>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Activities for selected range ── */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            {rangeLabel}
+          </h2>
+          {selectedRange.type === "day" && (
+            <button
+              onClick={() => setSelectedRange({ type: "week", weekStart: getCurrentWeekMonday() })}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Back to this week
+            </button>
+          )}
+        </div>
+
+        {loadingRangeActivities ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+          </div>
+        ) : !rangeActivities?.length ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            No activities {selectedRange.type === "week" ? "this week" : "on this day"}.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {rangeActivities.map((act: Activity) => {
+              const Icon = sportTypeIcon(act.sport_type);
+              const isSwim = act.sport_type?.toLowerCase().includes("swim");
+              const isRide = act.sport_type?.toLowerCase().includes("ride");
+              return (
+                <Link key={act.id} href={`/activities/${act.id}`}>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer group">
+                    <div className={`p-2 rounded-md bg-muted shrink-0 ${sportTypeColor(act.sport_type)}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{act.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(act.start_date_local ?? act.start_date).toLocaleDateString("en", {
+                          weekday: "short", month: "short", day: "numeric",
+                        })}
+                        {" · "}{displaySportType(act.sport_type)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
+                      <div className="text-right">
+                        <p className="text-foreground text-sm">{formatDistance(act.distance, measurePref)}</p>
+                        <p className="text-xs">{formatPace(act.average_speed ?? 0, act.sport_type, measurePref)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-foreground text-sm">{formatDuration(act.moving_time)}</p>
+                        {!isSwim && <p className="text-xs">{formatElevation(act.total_elevation_gain ?? 0, measurePref)}</p>}
+                      </div>
+                      {isRide && act.device_watts && act.average_watts && (
+                        <div className="text-right">
+                          <p className="text-foreground text-sm flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-yellow-500" />{Math.round(act.average_watts)}W
+                          </p>
+                          <p className="text-xs">
+                            {act.weighted_average_watts ? `NP ${Math.round(act.weighted_average_watts)}W` : "avg power"}
+                          </p>
+                        </div>
+                      )}
+                      {act.average_heartrate && (
+                        <div className="text-right">
+                          <p className="text-foreground text-sm flex items-center gap-1">
+                            <Heart className="w-3 h-3 text-red-500" />{Math.round(act.average_heartrate)}
+                          </p>
+                          <p className="text-xs">avg bpm</p>
+                        </div>
+                      )}
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
