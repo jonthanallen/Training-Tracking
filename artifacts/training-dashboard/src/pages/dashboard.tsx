@@ -267,7 +267,7 @@ export default function Dashboard() {
                   tickLine={false}
                   width={chartMode === "hours" ? 36 : 44}
                   tickCount={4}
-                  tickFormatter={(v: number) => chartMode === "hours" ? fmtHours(v) : `${v.toFixed(0)}`}
+                  tickFormatter={(v: number) => chartMode === "hours" ? fmtHours(v) : `${v.toFixed(0)}${distUnit}`}
                 />
                 <Tooltip content={<AreaTooltipContent />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
                 <Area
