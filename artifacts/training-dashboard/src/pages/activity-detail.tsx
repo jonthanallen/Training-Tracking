@@ -147,11 +147,13 @@ function ActivityChart({ streams, measurePref, sportType }: {
   const isImperial = measurePref === "imperial";
   const isRide = sportType?.toLowerCase().includes("ride");
 
+  const isRun = sportType?.toLowerCase().includes("run");
+
   const available: Record<string, boolean> = {
     elev:    !!(streams.altitude?.length),
     hr:      !!(streams.heartrate?.length),
     speed:   !!(streams.velocity_smooth?.length),
-    power:   !!(streams.watts?.length),
+    power:   !isRun && !!(streams.watts?.length),
     cadence: !!(streams.cadence?.length),
   };
 
@@ -394,7 +396,7 @@ export default function ActivityDetail() {
                   {activity.laps.some((l) => l.average_heartrate) && (
                     <th className="px-5 py-2 text-right">HR</th>
                   )}
-                  {activity.laps.some((l) => l.average_watts) && (
+                  {!activity.sport_type?.toLowerCase().includes("run") && activity.laps.some((l) => l.average_watts) && (
                     <th className="px-5 py-2 text-right">Watts</th>
                   )}
                   <th className="px-5 py-2 text-right">Elev</th>
@@ -412,7 +414,7 @@ export default function ActivityDetail() {
                         {l.average_heartrate ? Math.round(l.average_heartrate) : "—"}
                       </td>
                     )}
-                    {activity.laps!.some((ll) => ll.average_watts) && (
+                    {!activity.sport_type?.toLowerCase().includes("run") && activity.laps!.some((ll) => ll.average_watts) && (
                       <td className="px-5 py-2.5 text-right">
                         {l.average_watts ? `${Math.round(l.average_watts)}W` : "—"}
                       </td>
