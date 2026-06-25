@@ -75,7 +75,7 @@ export default function Dashboard() {
               <Skeleton className="h-7 w-24" />
             ) : (
               <div>
-                <div className="text-xl font-bold font-mono">{stat.value}</div>
+                <div className="text-xl font-bold font-mono text-primary">{stat.value}</div>
                 {stat.prev && (
                   <div className="text-xs text-muted-foreground mt-0.5">vs {stat.prev} last week</div>
                 )}
