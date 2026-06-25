@@ -264,8 +264,8 @@ export default function Dashboard() {
                   stroke={areaColor}
                   strokeWidth={2}
                   fill="url(#areaGrad)"
-                  dot={false}
-                  activeDot={{ r: 3, fill: areaColor }}
+                  dot={{ r: 3, fill: "hsl(var(--card))", stroke: areaColor, strokeWidth: 2 }}
+                  activeDot={{ r: 4, fill: areaColor, stroke: areaColor }}
                 />
               </AreaChart>
             </ResponsiveContainer>
