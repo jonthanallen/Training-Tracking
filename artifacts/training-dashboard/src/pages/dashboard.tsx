@@ -259,7 +259,7 @@ export default function Dashboard() {
                 />
                 <Tooltip content={<AreaTooltipContent />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
                 <Area
-                  type="monotone"
+                  type="linear"
                   dataKey="value"
                   stroke={areaColor}
                   strokeWidth={2}
