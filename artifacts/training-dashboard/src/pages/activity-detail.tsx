@@ -340,13 +340,32 @@ export default function ActivityDetail() {
     return <div className="text-muted-foreground py-16 text-center">Activity not found.</div>;
   }
 
+  // Coggan Normalized Power: 30s rolling avg → ^4 → mean → ^(1/4)
+  function computeNP(watts: number[]): number | null {
+    if (!watts || watts.length < 30) return null;
+    const window = 30;
+    const rolled: number[] = [];
+    for (let i = window - 1; i < watts.length; i++) {
+      let sum = 0;
+      for (let j = i - window + 1; j <= i; j++) sum += watts[j];
+      rolled.push(sum / window);
+    }
+    const meanFourth = rolled.reduce((acc, v) => acc + v ** 4, 0) / rolled.length;
+    return Math.round(meanFourth ** 0.25);
+  }
+
+  const isRide = activity.sport_type?.toLowerCase().includes("ride");
+  const wattsStream = streams?.watts as number[] | undefined;
+  const np = isRide && wattsStream ? computeNP(wattsStream) : null;
+
   const stats = [
     { label: "Distance", value: formatDistance(activity.distance, measurePref), icon: Activity },
     { label: "Moving Time", value: formatDuration(activity.moving_time), icon: Timer },
-    { label: activity.sport_type?.toLowerCase().includes("ride") ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
+    { label: isRide ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
     ...(!activity.sport_type?.toLowerCase().includes("swim") ? [{ label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain }] : []),
     { label: "Avg HR", value: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : "—", icon: Heart },
     ...(activity.average_watts && !activity.sport_type?.toLowerCase().includes("run") ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
+    ...(np !== null ? [{ label: "NP", value: `${np}W`, icon: Zap }] : []),
     ...(activity.kilojoules ? [{ label: "Energy", value: `${Math.round(activity.kilojoules)} kJ`, icon: Flame }] : []),
   ];
 
