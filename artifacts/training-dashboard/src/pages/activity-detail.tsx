@@ -206,7 +206,11 @@ function ActivityChart({ streams, measurePref, sportType }: {
 
   const maxTicks = 20;
   const tickStep = Math.max(1, Math.floor(data.length / maxTicks));
-  const axisTicks = data.filter((_, i) => i % tickStep === 0).map((d) => d.dist);
+  const axisTicks = Array.from(new Set([
+    data[0]?.dist,
+    ...data.filter((_, i) => i % tickStep === 0).map((d) => d.dist),
+    data[data.length - 1]?.dist,
+  ].filter(Boolean)));
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
