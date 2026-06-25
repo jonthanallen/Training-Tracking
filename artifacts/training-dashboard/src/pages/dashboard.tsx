@@ -61,6 +61,17 @@ const SPORT_COLOR: Record<SportFilter, string> = {
   Other: "hsl(0 0% 55%)",
 };
 
+function weekRange(weekStart: string): string {
+  const start = parseLocalDate(weekStart);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const sm = start.toLocaleDateString("en", { month: "short" });
+  const em = end.toLocaleDateString("en", { month: "short" });
+  return sm === em
+    ? `${sm} ${start.getDate()} – ${end.getDate()}`
+    : `${sm} ${start.getDate()} – ${em} ${end.getDate()}`;
+}
+
 function buildWeeklyAreaData(
   weeklyStats: Array<{ week_start: string; distance: number; moving_time: number; elevation_gain: number; count: number; sport_type?: string }>,
   dailyStats: DailyActivity[],
@@ -73,6 +84,7 @@ function buildWeeklyAreaData(
   if (sport === "All") {
     return weeklyStats.map((w) => ({
       label: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      weekRange: weekRange(w.week_start),
       value: mode === "hours"
         ? parseFloat((w.moving_time / 3600).toFixed(2))
         : measurePref === "imperial"
@@ -107,6 +119,7 @@ function buildWeeklyAreaData(
 
   return weeklyStats.map((w) => ({
     label: parseLocalDate(w.week_start).toLocaleDateString("en", { month: "short", day: "numeric" }),
+    weekRange: weekRange(w.week_start),
     value: parseFloat((weekMap.get(w.week_start) ?? 0).toFixed(2)),
   }));
 }
@@ -156,13 +169,12 @@ export default function Dashboard() {
 
   const areaColor = SPORT_COLOR[sportFilter];
 
-  const AreaTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
+  const AreaTooltipContent = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
     const v = payload[0].value as number;
-    const val = chartMode === "hours"
-      ? fmtHours(v)
-      : `${v.toFixed(1)} ${distUnit}`;
-    return <ChartTooltip label={String(label)} lines={[{ text: val, color: areaColor }]} />;
+    const row = payload[0].payload as { weekRange: string };
+    const val = chartMode === "hours" ? fmtHours(v) : `${v.toFixed(1)} ${distUnit}`;
+    return <ChartTooltip label={row.weekRange} lines={[{ text: val, color: areaColor }]} />;
   };
 
   const MonthlyTooltipContent = ({ active, payload, label }: TooltipProps<number, string>) => {
