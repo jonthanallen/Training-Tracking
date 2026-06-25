@@ -158,10 +158,12 @@ export default function Activities() {
                     </div>
                     <div className="text-right">
                       <p className="text-foreground">{formatDuration(act.moving_time)}</p>
-                      <p className="text-xs flex items-center justify-end gap-0.5">
-                        <Mountain className="w-3 h-3" />
-                        {formatElevation(act.total_elevation_gain ?? 0, measurePref)}
-                      </p>
+                      {!act.sport_type?.toLowerCase().includes("swim") && (
+                        <p className="text-xs flex items-center justify-end gap-0.5">
+                          <Mountain className="w-3 h-3" />
+                          {formatElevation(act.total_elevation_gain ?? 0, measurePref)}
+                        </p>
+                      )}
                     </div>
                     {act.average_heartrate && (
                       <div className="text-right">

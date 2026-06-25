@@ -331,7 +331,7 @@ export default function ActivityDetail() {
     { label: "Distance", value: formatDistance(activity.distance, measurePref), icon: Activity },
     { label: "Moving Time", value: formatDuration(activity.moving_time), icon: Timer },
     { label: activity.sport_type?.toLowerCase().includes("ride") ? "Average Speed" : "Pace", value: formatPace(activity.average_speed ?? 0, activity.sport_type, measurePref), icon: Wind },
-    { label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain },
+    ...(!activity.sport_type?.toLowerCase().includes("swim") ? [{ label: "Elevation", value: formatElevation(activity.total_elevation_gain ?? 0, measurePref), icon: Mountain }] : []),
     { label: "Avg HR", value: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : "—", icon: Heart },
     ...(activity.average_watts && !activity.sport_type?.toLowerCase().includes("run") ? [{ label: "Avg Power", value: `${Math.round(activity.average_watts)}W`, icon: Zap }] : []),
     ...(activity.kilojoules ? [{ label: "Energy", value: `${Math.round(activity.kilojoules)} kJ`, icon: Flame }] : []),
@@ -412,7 +412,7 @@ export default function ActivityDetail() {
                   {!activity.sport_type?.toLowerCase().includes("run") && activity.laps.some((l) => l.average_watts) && (
                     <th className="px-5 py-2 text-right">Watts</th>
                   )}
-                  <th className="px-5 py-2 text-right">Elev</th>
+                  {!activity.sport_type?.toLowerCase().includes("swim") && <th className="px-5 py-2 text-right">Elev</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -432,9 +432,11 @@ export default function ActivityDetail() {
                         {l.average_watts ? `${Math.round(l.average_watts)}W` : "—"}
                       </td>
                     )}
-                    <td className="px-5 py-2.5 text-right">
-                      {l.total_elevation_gain != null ? `${Math.round(l.total_elevation_gain)}m` : "—"}
-                    </td>
+                    {!activity.sport_type?.toLowerCase().includes("swim") && (
+                      <td className="px-5 py-2.5 text-right">
+                        {l.total_elevation_gain != null ? `${Math.round(l.total_elevation_gain)}m` : "—"}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
