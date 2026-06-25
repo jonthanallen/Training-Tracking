@@ -286,7 +286,7 @@ export default function Stats() {
                     hoverCell.cell.activities.length > 0
                       ? hoverCell.cell.activities.map((a) => ({
                           text: `${a.sport_type}${a.distance ? `  ${formatDist(a.distance, measurePref)}` : ""}`,
-                          color: activeColor,
+                          color: SPORT_COLOR[a.sport_type as SportFilter] ?? SPORT_COLOR.Other,
                         }))
                       : [{ text: "Rest", color: "hsl(var(--muted-foreground))" }]
                   }
