@@ -273,6 +273,8 @@ components:
           type: ["number", "null"]
         average_watts:
           type: ["number", "null"]
+        weighted_average_watts:
+          type: ["number", "null"]
         kilojoules:
           type: ["number", "null"]
         suffer_score:
