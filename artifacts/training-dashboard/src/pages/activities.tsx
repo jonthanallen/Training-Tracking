@@ -14,10 +14,7 @@ const SPORT_FILTERS = [
   { label: "Run", value: "Run" },
   { label: "Bike", value: "Ride" },
   { label: "Swim", value: "Swim" },
-  { label: "Walk", value: "Walk" },
-  { label: "Hike", value: "Hike" },
-  { label: "Weights", value: "WeightTraining" },
-  { label: "Workout", value: "Workout" },
+  { label: "Other", value: "Other" },
 ];
 
 function toUnix(dateStr: string | null | undefined): number | undefined {

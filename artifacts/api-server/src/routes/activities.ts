@@ -35,7 +35,10 @@ router.get("/activities", async (req, res) => {
 
       if (!batch || batch.length === 0) break;
 
-      const matching = batch.filter((a) => a.sport_type === type || a.type === type);
+      const CORE_TYPES = ["Run", "VirtualRun", "Ride", "VirtualRide", "Swim"];
+      const matching = type === "Other"
+        ? batch.filter((a) => !CORE_TYPES.includes(a.sport_type as string) && !CORE_TYPES.includes(a.type as string))
+        : batch.filter((a) => a.sport_type === type || a.type === type);
       result.push(...matching);
 
       if (batch.length < STRAVA_MAX_PER_PAGE) break; // exhausted all Strava history
