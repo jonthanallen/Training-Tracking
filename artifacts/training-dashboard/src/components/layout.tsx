@@ -1,6 +1,6 @@
 import { useGetAthlete, getGetAthleteQueryKey } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
-import { Activity, LayoutDashboard, List, BarChart3, Zap, Menu } from "lucide-react";
+import { LayoutDashboard, List, BarChart3, Zap, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,11 +22,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-card border-r border-border p-4 w-64">
-      <div className="flex items-center gap-2 px-2 py-4 mb-6">
-        <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
-          <Activity className="w-5 h-5" />
-        </div>
-        <span className="font-bold text-xl tracking-tight text-foreground">Training</span>
+      <div className="flex items-center gap-3 px-2 py-4 mb-6">
+        <Avatar className="w-10 h-10 border border-border shrink-0">
+          <AvatarImage src={athlete?.profile} />
+          <AvatarFallback>{athlete?.firstname?.charAt(0)}{athlete?.lastname?.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <span className="font-bold text-lg tracking-tight text-foreground leading-tight">
+          {athlete ? `${athlete.firstname} ${athlete.lastname}` : "Training"}
+        </span>
       </div>
 
       <nav className="flex-1 space-y-1">
@@ -47,18 +50,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      {athlete && (
-        <div className="mt-auto pt-4 border-t border-border flex items-center gap-3 px-2">
-          <Avatar className="w-10 h-10 border border-border">
-            <AvatarImage src={athlete.profile} />
-            <AvatarFallback>{athlete.firstname?.charAt(0)}{athlete.lastname?.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-foreground">{athlete.firstname} {athlete.lastname}</span>
-            <span className="text-xs text-muted-foreground">{athlete.city || 'Athlete'}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -72,10 +63,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-2">
-          <div className="bg-primary text-primary-foreground p-1 rounded-sm">
-            <Activity className="w-4 h-4" />
-          </div>
-          <span className="font-bold tracking-tight text-foreground">Training</span>
+          <Avatar className="w-7 h-7 border border-border">
+            <AvatarImage src={athlete?.profile} />
+            <AvatarFallback className="text-xs">{athlete?.firstname?.charAt(0)}{athlete?.lastname?.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <span className="font-bold tracking-tight text-foreground">
+            {athlete ? `${athlete.firstname} ${athlete.lastname}` : "Training"}
+          </span>
         </div>
         <Sheet>
           <SheetTrigger asChild>
