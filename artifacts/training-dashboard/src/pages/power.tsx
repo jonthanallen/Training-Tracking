@@ -227,7 +227,7 @@ export default function Power() {
                       isHighlight ? "bg-muted/20" : ""
                     }`}
                   >
-                    <td className={`px-5 py-3 font-mono ${isHighlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                    <td className={`px-5 py-3 ${isHighlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                       {row.label}
                     </td>
                     {RANGES.map((r) => {
