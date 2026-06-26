@@ -143,7 +143,7 @@ export default function Power() {
                   tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
-                  width={36}
+                  width={52}
                   tickFormatter={(v) => `${v}W`}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }} />
