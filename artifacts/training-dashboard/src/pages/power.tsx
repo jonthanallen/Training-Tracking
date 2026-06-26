@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGetPowerCurve, getGetPowerCurveQueryKey } from "@workspace/api-client-react";
 import type { GetPowerCurveParams } from "@workspace/api-client-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
@@ -14,6 +14,8 @@ const RANGE_LABELS: Record<Range, string> = {
   "ytd": "Year to Date",
   "lifetime": "Lifetime",
 };
+
+const RANGES: Range[] = ["6w", "ytd", "lifetime"];
 
 function Toggle<T extends string>({ options, value, onChange }: {
   options: { label: string; value: T }[];
@@ -51,24 +53,51 @@ const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   );
 };
 
-// Key power durations to call out with reference dots/labels
-const HIGHLIGHT_LABELS: Record<string, string> = {
-  "5s": "5s", "1min": "1min", "5min": "5min", "20min": "20min", "1hr": "1hr",
+const HIGHLIGHT_LABELS: Record<string, boolean> = {
+  "5s": true, "1min": true, "5min": true, "20min": true, "1hr": true,
 };
+
+function usePowerRange(range: Range) {
+  const params: GetPowerCurveParams = { range };
+  return useGetPowerCurve(params, {
+    query: { queryKey: getGetPowerCurveQueryKey(params) },
+  });
+}
 
 export default function Power() {
   const [range, setRange] = useState<Range>("6w");
 
-  const params: GetPowerCurveParams = { range };
-  const { data, isLoading } = useGetPowerCurve(params, {
-    query: { queryKey: getGetPowerCurveQueryKey(params) },
+  const q6w       = usePowerRange("6w");
+  const qYtd      = usePowerRange("ytd");
+  const qLifetime = usePowerRange("lifetime");
+
+  const dataByRange: Record<Range, ReturnType<typeof usePowerRange>["data"]> = {
+    "6w": q6w.data,
+    "ytd": qYtd.data,
+    "lifetime": qLifetime.data,
+  };
+
+  const activeData = dataByRange[range];
+  const isLoading  = { "6w": q6w.isLoading, "ytd": qYtd.isLoading, "lifetime": qLifetime.isLoading }[range];
+
+  const chartData = activeData?.map((pt, i) => ({ ...pt, index: i })) ?? [];
+  const hasData   = chartData.some((pt) => pt.watts != null);
+  const highlights = chartData.filter((pt) => HIGHLIGHT_LABELS[pt.label] && pt.watts != null);
+
+  // Build table rows: one per duration (use 6w as the canonical label/seconds list)
+  const tableRows = (q6w.data ?? qYtd.data ?? qLifetime.data ?? []).map((pt) => {
+    const get = (d: typeof q6w.data) =>
+      d?.find((p) => p.seconds === pt.seconds)?.watts ?? null;
+    return {
+      seconds: pt.seconds,
+      label: pt.label,
+      "6w": get(q6w.data),
+      "ytd": get(qYtd.data),
+      "lifetime": get(qLifetime.data),
+    };
   });
 
-  const chartData = data?.map((pt, i) => ({ ...pt, index: i })) ?? [];
-  const hasData = chartData.some((pt) => pt.watts != null);
-
-  // Key highlights to show as callout dots (5s, 1min, 5min, 20min, 1hr)
-  const highlights = chartData.filter((pt) => HIGHLIGHT_LABELS[pt.label] && pt.watts != null);
+  const tableLoading = q6w.isLoading || qYtd.isLoading || qLifetime.isLoading;
 
   return (
     <div className="space-y-8">
@@ -79,7 +108,7 @@ export default function Power() {
         </p>
       </div>
 
-      {/* ── Power Curve ── */}
+      {/* ── Power Curve Chart ── */}
       <div className="bg-card border border-border rounded-lg p-5">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
@@ -88,7 +117,7 @@ export default function Power() {
           <Toggle
             options={[
               { label: "6 Weeks", value: "6w" },
-              { label: "YTD", value: "ytd" },
+              { label: "YTD",     value: "ytd" },
               { label: "Lifetime", value: "lifetime" },
             ]}
             value={range}
@@ -137,7 +166,6 @@ export default function Power() {
               </LineChart>
             </ResponsiveContainer>
 
-            {/* Key duration callouts */}
             {highlights.length > 0 && (
               <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-border">
                 {highlights.map((pt) => (
@@ -153,6 +181,81 @@ export default function Power() {
               </div>
             )}
           </>
+        )}
+      </div>
+
+      {/* ── Comparison Table ── */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            Best Power · All Ranges
+          </h2>
+        </div>
+
+        {tableLoading ? (
+          <div className="p-5 space-y-2">
+            {Array.from({ length: 11 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24">
+                  Duration
+                </th>
+                {RANGES.map((r) => (
+                  <th
+                    key={r}
+                    className={`text-right px-5 py-3 text-xs font-semibold uppercase tracking-wider ${
+                      r === range ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {r === "6w" ? "6 Weeks" : r === "ytd" ? "YTD" : "Lifetime"}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, i) => {
+                const isHighlight = HIGHLIGHT_LABELS[row.label];
+                return (
+                  <tr
+                    key={row.seconds}
+                    className={`border-b border-border last:border-0 transition-colors ${
+                      isHighlight ? "bg-muted/20" : ""
+                    }`}
+                  >
+                    <td className={`px-5 py-3 font-mono ${isHighlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                      {row.label}
+                    </td>
+                    {RANGES.map((r) => {
+                      const w = row[r];
+                      const isActive = r === range;
+                      return (
+                        <td
+                          key={r}
+                          className={`px-5 py-3 text-right tabular-nums ${
+                            isActive ? "font-semibold text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {w != null ? (
+                            <>
+                              {w}
+                              <span className="text-xs ml-1 text-muted-foreground">W</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
