@@ -52,10 +52,6 @@ const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   );
 };
 
-const HIGHLIGHT_LABELS: Record<string, boolean> = {
-  "5s": true, "1min": true, "5min": true, "20min": true, "1hr": true,
-};
-
 function usePowerRange(range: Range) {
   const params: GetPowerCurveParams = { range };
   return useGetPowerCurve(params, {
@@ -201,16 +197,13 @@ export default function Power() {
               </tr>
             </thead>
             <tbody>
-              {tableRows.map((row, i) => {
-                const isHighlight = HIGHLIGHT_LABELS[row.label];
+              {tableRows.map((row) => {
                 return (
                   <tr
                     key={row.seconds}
-                    className={`border-b border-border last:border-0 transition-colors ${
-                      isHighlight ? "bg-muted/20" : ""
-                    }`}
+                    className="border-b border-border last:border-0"
                   >
-                    <td className={`px-5 py-3 ${isHighlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                    <td className="px-5 py-3 text-muted-foreground">
                       {row.label}
                     </td>
                     {RANGES.map((r) => {
