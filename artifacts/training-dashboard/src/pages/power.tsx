@@ -5,7 +5,6 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import type { TooltipProps } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartTooltip } from "@/components/chart-tooltip";
-import { Zap } from "lucide-react";
 
 type Range = "6w" | "ytd" | "lifetime";
 
@@ -82,8 +81,6 @@ export default function Power() {
 
   const chartData = activeData?.map((pt, i) => ({ ...pt, index: i })) ?? [];
   const hasData   = chartData.some((pt) => pt.watts != null);
-  const highlights = chartData.filter((pt) => HIGHLIGHT_LABELS[pt.label] && pt.watts != null);
-
   // Build table rows: one per duration (use 6w as the canonical label/seconds list)
   const tableRows = (q6w.data ?? qYtd.data ?? qLifetime.data ?? []).map((pt) => {
     const get = (d: typeof q6w.data) =>
@@ -166,20 +163,6 @@ export default function Power() {
               </LineChart>
             </ResponsiveContainer>
 
-            {highlights.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-border">
-                {highlights.map((pt) => (
-                  <div key={pt.label} className="flex flex-col items-center px-4 py-2 bg-muted/50 rounded-lg min-w-[72px]">
-                    <span className="text-xs text-muted-foreground">{pt.label}</span>
-                    <span className="text-lg font-bold text-foreground flex items-center gap-0.5">
-                      <Zap className="w-3.5 h-3.5 text-yellow-500" />
-                      {pt.watts}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">W</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </>
         )}
       </div>
